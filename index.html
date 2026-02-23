@@ -1227,10 +1227,6 @@ body.kids-active>*:not(#kidsMode){ display:none !important; }
   <div class="qibla-box">
     <h3>🧭 Qibla Direction</h3>
     <p id="qiblaSubtitle">Calculating…</p>
-    <p style="font-size:11px;color:#6b7280;margin:-8px 0 10px;background:#f0fdf4;padding:6px 10px;border-radius:8px;">
-      💡 On laptop: use this angle with a physical compass or phone compass to face Qibla.<br>
-      On mobile: the angle auto-updates with device orientation.
-    </p>
     <div class="compass-wrap">
       <div class="compass-rose" id="compassRose">
         <div class="compass-n">N</div>
@@ -1243,6 +1239,20 @@ body.kids-active>*:not(#kidsMode){ display:none !important; }
     </div>
     <div class="qibla-degrees" id="qiblaDeg">--°</div>
     <div class="qibla-direction" id="qiblaDir">from North</div>
+    
+    <!-- iOS live compass button -->
+    <div id="compassPermBtn" style="display:none;margin:10px 0;">
+      <p style="font-size:11px;color:#92400e;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:8px 10px;margin:0 0 8px;line-height:1.5">
+        ⚙️ <strong>For live compass:</strong> This app needs access to your device compass sensor (gyroscope) — not your microphone. Tap below to enable the needle to rotate as you turn.
+      </p>
+      <button onclick="requestCompassPermission()" style="width:100%;background:#166534;color:white;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer">
+        Enable Live Compass
+      </button>
+    </div>
+    
+    <p style="font-size:10px;color:#9ca3af;margin:6px 0 10px;text-align:center">
+      💡 Calculated from your GPS location — mathematically accurate
+    </p>
     <button class="qibla-close-btn" onclick="closeQibla()">Close</button>
   </div>
 </div>
@@ -1662,20 +1672,26 @@ async function findMasjid(){
       list.innerHTML='<div class="masjid-item">No masjids found within 10km. Try searching a different city above.</div>';
       return;
     }
-    const withDist=data.elements.map(el=>{
+    const withDist=data.elements.map((el,idx)=>{
       const elLat=Number(el.lat||(el.center&&el.center.lat)||0);
       const elLng=Number(el.lon||(el.center&&el.center.lon)||0);
       const tags=el.tags||{};
+      // Try every possible name tag before giving up
       const name=tags.name||tags["name:en"]||tags["name:ar"]||
-                 tags["name:ur"]||tags["name:tr"]||tags.operator||"Masjid";
-      return{elLat,elLng,name,dist:calcDist(lat,lng,elLat,elLng)};
+                 tags["name:ur"]||tags["name:tr"]||tags["name:fr"]||
+                 tags["name:de"]||tags["name:ro"]||tags["name:es"]||
+                 tags.operator||tags.brand||tags.description||
+                 tags["alt_name"]||tags["official_name"]||null;
+      return{elLat,elLng,name,idx,dist:calcDist(lat,lng,elLat,elLng)};
     }).filter(el=>el.elLat&&el.elLng).sort((a,b)=>a.dist-b.dist);
-    list.innerHTML=withDist.slice(0,10).map(el=>{
+    list.innerHTML=withDist.slice(0,10).map((el,i)=>{
       const distStr=el.dist<1?(el.dist*1000).toFixed(0)+" m":el.dist.toFixed(2)+" km";
-      const mapsUrl=`https://www.google.com/maps/search/?api=1&query=${el.elLat},${el.elLng}`;
+      // If no name found — show "Masjid #1", "Masjid #2" etc with tap to search
+      const displayName = el.name || `Masjid #${i+1} (unnamed on map)`;
+      const mapsUrl=`https://www.google.com/maps/search/?api=1&query=mosque+near+${el.elLat},${el.elLng}`;
       const dirsUrl=`https://www.google.com/maps/dir/?api=1&destination=${el.elLat},${el.elLng}`;
       return `<div class="masjid-item">
-        <div class="masjid-name">🕌 ${el.name}</div>
+        <div class="masjid-name">🕌 ${displayName}</div>
         <div class="masjid-dist">📍 ${distStr} away &nbsp;·&nbsp;
           <a href="${mapsUrl}" target="_blank" style="color:var(--accent);text-decoration:none">View ↗</a> &nbsp;·&nbsp;
           <a href="${dirsUrl}" target="_blank" style="color:var(--accent);text-decoration:none">Directions ↗</a>
@@ -1684,9 +1700,17 @@ async function findMasjid(){
     }).join("");
   } catch(e){
     console.error("Masjid:",e);
-    list.innerHTML=`<div class="masjid-item">Could not load automatically.
-      <br><a href="https://www.google.com/maps/search/mosque+near+me" target="_blank"
-        style="color:var(--accent);text-decoration:none">🔍 Search on Google Maps ↗</a></div>`;
+    const lat = pCoords ? pCoords.lat : "";
+    const lng = pCoords ? pCoords.lng : "";
+    const osmUrl = lat ? `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=14/${lat}/${lng}` : "https://www.openstreetmap.org";
+    const gmUrl = lat ? `https://www.google.com/maps/search/mosque/@${lat},${lng},14z` : "https://www.google.com/maps/search/mosque+near+me";
+    list.innerHTML=`<div class="masjid-item">
+      Could not load masjids automatically. Try one of these:
+      <br><br>
+      <a href="${gmUrl}" target="_blank" style="color:var(--accent);text-decoration:none;font-weight:700">🗺 Google Maps — Mosques near me ↗</a>
+      <br><br>
+      <a href="${osmUrl}" target="_blank" style="color:var(--accent);text-decoration:none;font-weight:700">🗺 OpenStreetMap — Your area ↗</a>
+    </div>`;
   }
 }
 
@@ -1733,27 +1757,46 @@ let qiblaAngle=0;
 let compassListener=null;
 
 function startCompass(){
-  if(window.DeviceOrientationEvent){
-    if(typeof DeviceOrientationEvent.requestPermission==="function"){
-      // iOS 13+
-      DeviceOrientationEvent.requestPermission().then(state=>{
-        if(state==="granted") listenCompass();
-      }).catch(()=>{});
-    } else {
+  if(!window.DeviceOrientationEvent) return;
+  if(typeof DeviceOrientationEvent.requestPermission === "function"){
+    // iOS 13+ — show the enable button, don't auto-prompt
+    document.getElementById("compassPermBtn").style.display = "block";
+  } else {
+    // Android — works without permission
+    listenCompass();
+  }
+}
+
+function requestCompassPermission(){
+  DeviceOrientationEvent.requestPermission().then(state=>{
+    if(state === "granted"){
+      document.getElementById("compassPermBtn").style.display = "none";
       listenCompass();
     }
-  }
+  }).catch(err=>{
+    console.log("Compass permission denied:", err);
+  });
 }
 
 function listenCompass(){
   compassListener=e=>{
-    const heading = e.webkitCompassHeading || (e.alpha ? (360 - e.alpha) : null);
-    if(heading===null||heading===undefined) return;
-    // Rotate the compass rose so North always points up relative to device
-    const rose=document.getElementById("compassRose");
-    if(rose) rose.style.transform=`rotate(${heading - qiblaAngle}deg)`;
+    // webkitCompassHeading = degrees clockwise from true North (iOS)
+    // alpha = degrees counterclockwise from North (Android)
+    let heading = null;
+    if(e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null){
+      heading = e.webkitCompassHeading; // iOS — already true North clockwise
+    } else if(e.alpha !== null && e.alpha !== undefined){
+      heading = (360 - e.alpha) % 360; // Android — convert to clockwise
+    }
+    if(heading === null) return;
+    // Rose rotates opposite to device heading so North on rose = physical North
+    // Needle is fixed pointing at qiblaAngle from North
+    const rose = document.getElementById("compassRose");
+    const needle = document.getElementById("compassNeedle");
+    if(rose) rose.style.transform = `rotate(${-heading}deg)`;
+    if(needle) needle.style.transform = `translate(-50%,-100%) rotate(${qiblaAngle - heading}deg)`;
   };
-  window.addEventListener("deviceorientation", compassListener);
+  window.addEventListener("deviceorientation", compassListener, true);
 }
 
 function closeQibla(){

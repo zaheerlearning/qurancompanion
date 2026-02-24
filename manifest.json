@@ -1,0 +1,27 @@
+{
+  "name": "Quran Companion",
+  "short_name": "Quran",
+  "description": "Your complete Quran companion — prayer times, Qibla, Tafsir, Hadith, Kids Mode and more",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#166534",
+  "theme_color": "#166534",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "lifestyle", "religion"],
+  "lang": "en",
+  "dir": "ltr"
+}

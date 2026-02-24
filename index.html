@@ -20,6 +20,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Quran Companion">
 <link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <style>
 :root{
   --primary:#166534;
@@ -423,60 +425,95 @@ main{ max-width:1000px; margin:auto; padding:15px; }
 /* ══ QIBLA OVERLAY ══ */
 #qiblaOverlay{
   position:fixed; inset:0; z-index:10002;
-  background:rgba(0,0,0,.7);
-  display:none; align-items:center; justify-content:center;
+  background:#0a1628;
+  display:none; flex-direction:column;
+  overflow-y:auto;
 }
 #qiblaOverlay.open{ display:flex; }
-.qibla-box{
-  background:white; border-radius:20px;
-  padding:24px; text-align:center;
-  max-width:300px; width:90%;
+.qibla-header{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:16px 20px; flex-shrink:0;
+  background:rgba(255,255,255,.05);
+  border-bottom:1px solid rgba(255,255,255,.08);
 }
-.qibla-box h3{ margin:0 0 6px; color:var(--primary); font-size:18px; }
-.qibla-box p{ margin:0 0 16px; font-size:12px; color:#6b7280; }
+.qibla-header h3{ color:white; font-size:18px; font-weight:800; margin:0; }
+.qibla-close-btn{
+  background:rgba(255,255,255,.1); border:none; color:white;
+  border-radius:10px; padding:8px 16px; font-size:13px;
+  font-weight:700; cursor:pointer;
+}
+.qibla-body{
+  flex:1; display:flex; flex-direction:column;
+  align-items:center; padding:20px 16px 30px;
+  gap:20px;
+}
+/* Compass */
 .compass-wrap{
-  width:200px; height:200px; margin:0 auto 16px;
-  position:relative;
+  width:220px; height:220px;
+  position:relative; flex-shrink:0;
+}
+.compass-outer-ring{
+  position:absolute; inset:0; border-radius:50%;
+  border:2px solid rgba(255,255,255,.1);
+  background:radial-gradient(circle, #1a2f45 0%, #0d1b2a 100%);
+}
+.compass-cardinal{
+  position:absolute; inset:0;
+}
+.compass-cardinal span{
+  position:absolute; color:rgba(255,255,255,.7);
+  font-size:12px; font-weight:800; width:20px; text-align:center;
 }
 .compass-rose{
-  width:100%; height:100%; border-radius:50%;
-  background:linear-gradient(135deg,#f0fdf4,#dcfce7);
-  border:3px solid var(--primary);
-  position:relative; transition:transform .5s ease;
+  position:absolute; inset:0; border-radius:50%;
+  transition:transform .08s linear;
 }
-.compass-n{
-  position:absolute; top:6px; left:50%; transform:translateX(-50%);
-  font-size:11px; font-weight:700; color:var(--primary);
-}
-.compass-needle{
+/* Needle is FIXED pointing straight up (to Qibla)
+   The rose rotates so that North aligns with device heading */
+
+.compass-center{
   position:absolute; top:50%; left:50%;
-  transform:translate(-50%,-100%);
-  transform-origin:bottom center;
-  width:0; height:0;
+  transform:translate(-50%,-50%);
+  width:14px; height:14px; border-radius:50%;
+  background:#4ade80;
+  box-shadow:0 0 12px rgba(74,222,128,.9);
+  z-index:10;
 }
-.needle-north{
-  width:4px; height:80px; background:red;
-  border-radius:4px 4px 0 0;
-  position:absolute; left:-2px; bottom:0;
-}
-.needle-south{
-  width:4px; height:60px; background:#aaa;
-  border-radius:0 0 4px 4px;
-  position:absolute; left:-2px; top:0;
-}
-.kaaba-icon{
-  position:absolute; font-size:24px;
-  top:50%; left:50%; transform:translate(-50%,-50%);
+/* Degrees badge */
+.qibla-badge{
+  background:rgba(74,222,128,.15);
+  border:1px solid rgba(74,222,128,.4);
+  border-radius:16px; padding:10px 24px;
+  text-align:center;
 }
 .qibla-degrees{
-  font-size:28px; font-weight:700; color:var(--primary);
-  margin-bottom:4px;
+  font-size:36px; font-weight:800; color:#4ade80;
+  line-height:1; letter-spacing:-1px;
 }
-.qibla-direction{ font-size:13px; color:#6b7280; margin-bottom:16px; }
-.qibla-close-btn{
-  padding:10px 24px; border-radius:10px;
-  background:var(--primary); color:white;
-  border:none; font-weight:700; cursor:pointer; font-size:14px;
+.qibla-direction{ font-size:13px; color:rgba(255,255,255,.6); margin-top:4px; }
+/* Map */
+#qiblaMap{
+  width:100%; max-width:500px;
+  height:260px; border-radius:16px;
+  border:1px solid rgba(255,255,255,.1);
+  overflow:hidden; flex-shrink:0;
+}
+/* iOS perm btn */
+#compassPermBtn{
+  background:rgba(251,191,36,.1);
+  border:1px solid rgba(251,191,36,.4);
+  border-radius:12px; padding:12px 16px;
+  text-align:center; width:100%; max-width:300px;
+  box-sizing:border-box;
+}
+#compassPermBtn p{
+  color:#fbbf24; font-size:12px; margin:0 0 10px; line-height:1.5;
+}
+#compassPermBtn button{
+  background:#4ade80; color:#0a1628;
+  border:none; border-radius:20px;
+  padding:10px 28px; font-size:13px;
+  font-weight:800; cursor:pointer;
 }
 
 /* Azan banner animation */
@@ -1065,22 +1102,26 @@ body.kids-active>*:not(#kidsMode){ display:none !important; }
         <option value="C">°C</option>
         <option value="both">°F & °C</option>
       </select>
+      <select id="distUnit" onchange="saveDistUnit()" style="flex:0 0 auto;min-width:0">
+        <option value="km">km</option>
+        <option value="mi">miles</option>
+      </select>
     </div>
 
     <!-- Calc + Asr -->
     <div class="p-settings">
       <select id="calcMethod" onchange="savePS();fetchPrayerTimes()">
-        <option value="3">Muslim World League</option>
-        <option value="2">ISNA – North America</option>
-        <option value="5">Egyptian General Authority</option>
-        <option value="1">University of Karachi</option>
-        <option value="4">Umm Al-Qura (Makkah)</option>
-        <option value="16">Dubai</option>
-        <option value="9">Kuwait</option>
-        <option value="10">Qatar</option>
-        <option value="11">Singapore / Malaysia</option>
-        <option value="13">Diyanet İşleri – Turkey</option>
-        <option value="7">Tehran (Shia)</option>
+        <option value="1">University of Karachi — 18° (Recommended)</option>
+        <option value="3">Muslim World League — 18°</option>
+        <option value="5">Egyptian General Authority — 19.5°</option>
+        <option value="13">Diyanet İşleri – Turkey — 18°</option>
+        <option value="4">Umm Al-Qura (Makkah) — 18.5°</option>
+        <option value="16">Dubai — 18.2°</option>
+        <option value="9">Kuwait — 18°</option>
+        <option value="10">Qatar — 18°</option>
+        <option value="11">Singapore / Malaysia — 20°</option>
+        <option value="2">ISNA – North America — 15°</option>
+        <option value="7">Tehran (Shia) — 17.7°</option>
       </select>
       <select id="asrMethod" onchange="savePS();fetchPrayerTimes()">
         <option value="0">Asr: Standard (Shafi'i · Maliki · Hanbali)</option>
@@ -1231,40 +1272,104 @@ body.kids-active>*:not(#kidsMode){ display:none !important; }
 <audio id="azanAudio" preload="none"></audio>
 
 <!-- Qibla overlay -->
+<!-- ══ QIBLA FULL SCREEN ══ -->
 <div id="qiblaOverlay">
-  <div class="qibla-box">
+  <div class="qibla-header">
     <h3>🧭 Qibla Direction</h3>
-    <p id="qiblaSubtitle">Calculating…</p>
-    <div class="compass-wrap">
-      <div class="compass-rose" id="compassRose">
-        <div class="compass-n">N</div>
-        <div class="compass-needle" id="compassNeedle">
-          <div class="needle-south"></div>
-          <div class="needle-north"></div>
-        </div>
-        <div class="kaaba-icon">🕋</div>
-      </div>
+    <button class="qibla-close-btn" onclick="closeQibla()">✕ Close</button>
+  </div>
+  <div class="qibla-body">
+
+    <!-- Simple static Qibla arrow — always accurate, no sensor needed -->
+    <div style="position:relative;width:220px;height:220px;margin:0 auto">
+      <!-- Outer ring -->
+      <svg viewBox="0 0 220 220" style="position:absolute;inset:0;width:100%;height:100%">
+        <!-- Background circle -->
+        <circle cx="110" cy="110" r="106" fill="rgba(13,27,42,0.95)" stroke="rgba(255,255,255,0.1)" stroke-width="1.5"/>
+        <!-- Fixed cardinal labels — N always at top -->
+        <text x="110" y="18" text-anchor="middle" fill="white" font-size="15" font-weight="bold" font-family="Arial">N</text>
+        <text x="110" y="212" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="13" font-family="Arial">S</text>
+        <text x="12" y="115" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="13" font-family="Arial">W</text>
+        <text x="208" y="115" text-anchor="middle" fill="rgba(255,255,255,0.35)" font-size="13" font-family="Arial">E</text>
+        <!-- NE NW SE SW -->
+        <text x="183" y="46" text-anchor="middle" fill="rgba(255,255,255,0.2)" font-size="11" font-family="Arial">NE</text>
+        <text x="37" y="46" text-anchor="middle" fill="rgba(255,255,255,0.2)" font-size="11" font-family="Arial">NW</text>
+        <text x="183" y="186" text-anchor="middle" fill="rgba(255,255,255,0.2)" font-size="11" font-family="Arial">SE</text>
+        <text x="37" y="186" text-anchor="middle" fill="rgba(255,255,255,0.2)" font-size="11" font-family="Arial">SW</text>
+        <!-- Tick marks -->
+        <g stroke="rgba(255,255,255,0.2)" stroke-width="1.5">
+          <line x1="110" y1="24" x2="110" y2="36"/>
+          <line x1="110" y1="184" x2="110" y2="196"/>
+          <line x1="24" y1="110" x2="36" y2="110"/>
+          <line x1="184" y1="110" x2="196" y2="110"/>
+        </g>
+        <g stroke="rgba(255,255,255,0.1)" stroke-width="1">
+          <line x1="55" y1="55" x2="64" y2="64"/>
+          <line x1="165" y1="55" x2="156" y2="64"/>
+          <line x1="55" y1="165" x2="64" y2="156"/>
+          <line x1="165" y1="165" x2="156" y2="156"/>
+        </g>
+        <!-- Dashed circle showing qibla path -->
+        <circle cx="110" cy="110" r="80" fill="none" stroke="rgba(74,222,128,0.1)" stroke-width="1" stroke-dasharray="4,4"/>
+      </svg>
+
+      <!-- Qibla arrow — rotated by bearing via JS, pivot at center -->
+      <svg id="qiblaArrow" viewBox="0 0 220 220"
+           style="position:absolute;inset:0;width:100%;height:100%">
+        <defs>
+          <filter id="arrowGlow">
+            <feGaussianBlur stdDeviation="3" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        <!-- Arrow tip pointing UP (North=0°). JS rotates this by bearing. -->
+        <!-- Tip -->
+        <polygon points="110,22 103,90 117,90" fill="#4ade80" filter="url(#arrowGlow)"/>
+        <!-- Shaft -->
+        <rect x="107" y="90" width="6" height="50" fill="#4ade80" rx="2" filter="url(#arrowGlow)"/>
+        <!-- Tail -->
+        <polygon points="110,198 104,140 116,140" fill="rgba(255,255,255,0.2)"/>
+        <!-- Kaaba at tip -->
+        <text x="110" y="15" text-anchor="middle" font-size="12">🕋</text>
+        <!-- Center dot -->
+        <circle cx="110" cy="110" r="6" fill="#4ade80" filter="url(#arrowGlow)"/>
+        <circle cx="110" cy="110" r="3" fill="#0a1628"/>
+      </svg>
     </div>
-    <div class="qibla-degrees" id="qiblaDeg">--°</div>
-    <div class="qibla-direction" id="qiblaDir">from North</div>
-    
-    <!-- iOS live compass button -->
-    <div id="compassPermBtn" style="display:none;margin:10px 0;">
-      <p style="font-size:11px;color:#92400e;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:8px 10px;margin:0 0 8px;line-height:1.5">
-        ⚙️ <strong>For live compass:</strong> This app needs access to your device compass sensor (gyroscope) — not your microphone. Tap below to enable the needle to rotate as you turn.
-      </p>
-      <button onclick="requestCompassPermission()" style="width:100%;background:#166534;color:white;border:none;border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer">
-        Enable Live Compass
-      </button>
+
+    <!-- Degree badge -->
+    <div class="qibla-badge">
+      <div class="qibla-degrees" id="qiblaDeg">--°</div>
+      <div class="qibla-direction" id="qiblaDir">Calculating…</div>
     </div>
-    
-    <p style="font-size:10px;color:#9ca3af;margin:6px 0 10px;text-align:center">
-      💡 Calculated from your GPS location — mathematically accurate
+
+    <!-- Recalculate button for travelers -->
+    <button onclick="recalcQiblaFromGPS()" style="
+      background:rgba(74,222,128,.15);
+      border:1px solid rgba(74,222,128,.4);
+      color:#4ade80; border-radius:20px;
+      padding:10px 24px; font-size:13px;
+      font-weight:700; cursor:pointer;
+      display:flex; align-items:center; gap:8px;
+    ">
+      📍 Recalculate from my current location
+    </button>
+    <div id="qiblaLocStatus" style="font-size:11px;color:rgba(255,255,255,.4);margin:-8px 0 0"></div>
+
+    <!-- iOS permission -->
+    <div id="compassPermBtn" style="display:none">
+      <p>⚙️ Tap to enable live compass rotation as you turn your device</p>
+      <button onclick="requestCompassPermission()">Enable Live Compass</button>
+    </div>
+
+    <!-- World map -->
+    <div id="qiblaMap"></div>
+    <p style="font-size:10px;color:rgba(255,255,255,.3);margin:0;text-align:center">
+      Green line shows direction from your location to Makkah al-Mukarramah
     </p>
-    <button class="qibla-close-btn" onclick="closeQibla()">Close</button>
+
   </div>
 </div>
-
 <script>
 /* ═══════════════════════════════════════════
    BACKEND URL
@@ -1332,7 +1437,7 @@ function getPrayerName(p){
 let pCoords=null, pTimeObjs=null, pExpanded=false;
 let azanOn=true, pTickTimer=null, lastAzanFired={};
 
-const _calc=localStorage.getItem("pCalc")||"3";
+const _calc=localStorage.getItem("pCalc")||"1";
 const _asr =localStorage.getItem("pAsr") ||"0";
 const _azan=localStorage.getItem("pAzan")||"makkah";
 const _mute=localStorage.getItem("pMute")||"0";
@@ -1348,6 +1453,8 @@ setTimeout(()=>{
   if(rs) rs.value=_reciter;
   const tu=document.getElementById("tempUnit");
   if(tu) tu.value=localStorage.getItem("tempUnit")||"F";
+  const du=document.getElementById("distUnit");
+  if(du) du.value=localStorage.getItem("distUnit")||"km";
 },100);
 
 function savePS(){
@@ -1357,6 +1464,11 @@ function savePS(){
   if(document.getElementById("reciterSelect"))
     localStorage.setItem("pReciter",document.getElementById("reciterSelect").value);
 }
+function saveDistUnit(){
+  const u=document.getElementById("distUnit")?.value||"km";
+  localStorage.setItem("distUnit",u);
+}
+
 function saveTempUnit(){
   const u=document.getElementById("tempUnit")?.value||"F";
   localStorage.setItem("tempUnit",u);
@@ -1693,7 +1805,14 @@ async function findMasjid(){
       return{elLat,elLng,name,idx,dist:calcDist(lat,lng,elLat,elLng)};
     }).filter(el=>el.elLat&&el.elLng).sort((a,b)=>a.dist-b.dist);
     list.innerHTML=withDist.slice(0,10).map((el,i)=>{
-      const distStr=el.dist<1?(el.dist*1000).toFixed(0)+" m":el.dist.toFixed(2)+" km";
+      const distUnit=localStorage.getItem("distUnit")||"km";
+      let distStr;
+      if(distUnit==="mi"){
+        const miles=el.dist*0.621371;
+        distStr=miles<0.1?(miles*5280).toFixed(0)+" ft":miles.toFixed(2)+" mi";
+      } else {
+        distStr=el.dist<1?(el.dist*1000).toFixed(0)+" m":el.dist.toFixed(2)+" km";
+      }
       // If no name found — show "Masjid #1", "Masjid #2" etc with tap to search
       const displayName = el.name || `Masjid #${i+1} (unnamed on map)`;
       const mapsUrl=`https://www.google.com/maps/search/?api=1&query=mosque+near+${el.elLat},${el.elLng}`;
@@ -1735,6 +1854,8 @@ function calcDist(lat1,lon1,lat2,lon2){
 ═══════════════════════════════════════════ */
 const MAKKAH={lat:21.4225,lng:39.8262};
 
+let qiblaMap = null;
+
 function openQibla(){
   if(!pCoords){ alert("Please enable location first."); return; }
   qiblaOverlay.classList.add("open");
@@ -1748,13 +1869,133 @@ function openQibla(){
   bearing=(bearing+360)%360;
 
   qiblaAngle=bearing;
-  qiblaDeg.textContent=bearing.toFixed(1)+"°";
-  qiblaDir.textContent=getCardinal(bearing)+" from North";
-  qiblaSubtitle.textContent="From your location toward Makkah";
-  compassNeedle.style.transform=`translate(-50%,-100%) rotate(${bearing}deg)`;
-  compassRose.style.transform=`rotate(${-bearing}deg)`;
+  document.getElementById("qiblaDeg").textContent=bearing.toFixed(1)+"°";
+  document.getElementById("qiblaDir").textContent="toward Makkah · "+getCardinal(bearing)+" from North";
+
+  // Rotate arrow to qibla bearing — pivot at SVG center (110,110)
+  const arrow = document.getElementById("qiblaArrow");
+  if(arrow) arrow.style.transform = `rotate(${bearing}deg)`;
+  if(arrow) arrow.style.transformOrigin = "110px 110px";
+
   startCompass();
+  initQiblaMap(lat, lng);
+
+  // Auto-refresh GPS silently for precise local accuracy
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(pos=>{
+      const newLat=pos.coords.latitude;
+      const newLng=pos.coords.longitude;
+      // Only redraw if location changed meaningfully (>100m)
+      const moved=calcDist(lat,lng,newLat,newLng)*1000 > 100;
+      if(moved){
+        pCoords={lat:newLat,lng:newLng};
+        openQibla(); // redraw with precise location
+      }
+    },
+    ()=>{}, // silent fail — already showing calculated result
+    {enableHighAccuracy:true, timeout:8000, maximumAge:0}
+    );
+  }
 }
+
+function initQiblaMap(userLat, userLng){
+  const mapDiv = document.getElementById("qiblaMap");
+
+  // Load Leaflet if not already loaded
+  if(!window.L){
+    const link=document.createElement("link");
+    link.rel="stylesheet";
+    link.href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css";
+    document.head.appendChild(link);
+    const script=document.createElement("script");
+    script.src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js";
+    script.onload=()=>buildMap(userLat, userLng);
+    document.head.appendChild(script);
+  } else {
+    buildMap(userLat, userLng);
+  }
+}
+
+function buildMap(userLat, userLng){
+  const mapDiv = document.getElementById("qiblaMap");
+
+  // Destroy previous map if exists
+  if(qiblaMap){ qiblaMap.remove(); qiblaMap=null; }
+
+  const makkahLat=21.4225, makkahLng=39.8262;
+
+  // Center map between user and Makkah
+  const centerLat=(userLat+makkahLat)/2;
+  const centerLng=(userLng+makkahLng)/2;
+
+  qiblaMap=L.map(mapDiv,{
+    center:[centerLat,centerLng],
+    zoom:2,
+    zoomControl:false,
+    attributionControl:false
+  });
+
+  // Dark map tiles
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{
+    maxZoom:19
+  }).addTo(qiblaMap);
+
+  // User location marker
+  const userIcon=L.divIcon({
+    html:`<div style="width:14px;height:14px;background:#4ade80;border-radius:50%;border:2px solid white;box-shadow:0 0 8px rgba(74,222,128,.8)"></div>`,
+    iconSize:[14,14], iconAnchor:[7,7], className:""
+  });
+  L.marker([userLat,userLng],{icon:userIcon})
+   .addTo(qiblaMap)
+   .bindPopup("📍 Your Location");
+
+  // Makkah marker
+  const makkahIcon=L.divIcon({
+    html:`<div style="font-size:20px;line-height:1;filter:drop-shadow(0 0 4px rgba(255,215,0,.8))">🕋</div>`,
+    iconSize:[24,24], iconAnchor:[12,12], className:""
+  });
+  L.marker([makkahLat,makkahLng],{icon:makkahIcon})
+   .addTo(qiblaMap)
+   .bindPopup("🕋 Makkah al-Mukarramah");
+
+  // Great circle line from user to Makkah
+  const line=L.polyline(
+    [[userLat,userLng],[makkahLat,makkahLng]],
+    {color:"#4ade80", weight:2, opacity:0.8, dashArray:"6,4"}
+  ).addTo(qiblaMap);
+
+  // Fit map to show both points
+  qiblaMap.fitBounds(line.getBounds(),{padding:[30,30]});
+
+  // Force map to recalculate size
+  setTimeout(()=>{ if(qiblaMap) qiblaMap.invalidateSize(); }, 200);
+}
+
+function recalcQiblaFromGPS(){
+  const status = document.getElementById("qiblaLocStatus");
+  status.textContent = "📡 Getting your location…";
+  if(!navigator.geolocation){
+    status.textContent = "⚠️ GPS not available on this device";
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      // Update global pCoords so rest of app uses new location too
+      pCoords = {lat, lng};
+      status.textContent = `✅ Updated — ${lat.toFixed(4)}°, ${lng.toFixed(4)}°`;
+      // Recalculate and redraw
+      openQibla();
+      setTimeout(()=>{ status.textContent=""; }, 3000);
+    },
+    err => {
+      status.textContent = "⚠️ Could not get location — check GPS permissions";
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+}
+
 
 function getCardinal(deg){
   const dirs=["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
@@ -1788,31 +2029,30 @@ function requestCompassPermission(){
 
 function listenCompass(){
   compassListener=e=>{
-    // webkitCompassHeading = degrees clockwise from true North (iOS)
-    // alpha = degrees counterclockwise from North (Android)
-    let heading = null;
-    if(e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null){
-      heading = e.webkitCompassHeading; // iOS — already true North clockwise
-    } else if(e.alpha !== null && e.alpha !== undefined){
-      heading = (360 - e.alpha) % 360; // Android — convert to clockwise
+    let heading=null;
+    if(e.webkitCompassHeading!=null){
+      heading=e.webkitCompassHeading; // iOS true North clockwise
+    } else if(e.alpha!=null){
+      heading=(360-e.alpha)%360; // Android convert to clockwise
     }
-    if(heading === null) return;
-    // Rose rotates opposite to device heading so North on rose = physical North
-    // Needle is fixed pointing at qiblaAngle from North
-    const rose = document.getElementById("compassRose");
-    const needle = document.getElementById("compassNeedle");
-    if(rose) rose.style.transform = `rotate(${-heading}deg)`;
-    if(needle) needle.style.transform = `translate(-50%,-100%) rotate(${qiblaAngle - heading}deg)`;
+    if(heading===null) return;
+    const rose=document.getElementById("compassRose");
+    const needle=document.getElementById("compassNeedle");
+    // Rose rotates opposite to device so cardinal labels stay correct
+    if(rose) rose.style.transform=`rotate(${-heading}deg)`;
+    // Needle points to qibla relative to current device heading
+    if(needle) needle.style.transform=`rotate(${qiblaAngle-heading}deg)`;
   };
-  window.addEventListener("deviceorientation", compassListener, true);
+  window.addEventListener("deviceorientation",compassListener,true);
 }
 
 function closeQibla(){
   qiblaOverlay.classList.remove("open");
   if(compassListener){
-    window.removeEventListener("deviceorientation", compassListener);
+    window.removeEventListener("deviceorientation",compassListener,true);
     compassListener=null;
   }
+  if(qiblaMap){ qiblaMap.remove(); qiblaMap=null; }
 }
 
 /* ═══════════════════════════════════════════

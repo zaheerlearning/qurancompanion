@@ -1351,25 +1351,24 @@ body.kids-active>*:not(#kidsMode){ display:none !important; }
         <line x1="150" y1="150" x2="150" y2="44" stroke="url(#qGrad2)" stroke-width="2" stroke-dasharray="5 4"/>
         <circle cx="150" cy="44" r="4" fill="#3D9B9B"/>
       </svg>
-      <div id="qKaaba" style="position:absolute;top:50%;left:50%;width:44px;height:44px;margin:-22px 0 0 -22px;transform-origin:center;transition:transform 0.28s cubic-bezier(0.25,0.46,0.45,0.94)">
-        <svg viewBox="0 0 44 44" width="44" height="44">
+      <div id="qKaaba" style="position:absolute;top:50%;left:50%;width:64px;height:64px;margin:-32px 0 0 -32px;transform-origin:center;transition:transform 0.28s cubic-bezier(0.25,0.46,0.45,0.94)">
+        <svg viewBox="0 0 64 64" width="64" height="64">
           <!-- stem line from center to Kaaba -->
-          <line x1="22" y1="22" x2="22" y2="4" stroke="rgba(61,155,155,0.6)" stroke-width="1.5"/>
+          <line x1="32" y1="32" x2="32" y2="6" stroke="rgba(61,155,155,0.6)" stroke-width="1.5"/>
           <!-- Kaaba cube centered at top -->
-          <g transform="translate(22,4)">
+          <g transform="translate(32,6)">
             <!-- main cube body -->
-            <rect x="-11" y="-11" width="22" height="20" rx="1" fill="#111111" stroke="#C9A84C" stroke-width="1.2"/>
-            <!-- gold kiswa band (horizontal stripe) -->
-            <rect x="-11" y="-4" width="22" height="5" fill="none" stroke="#C9A84C" stroke-width="0.5"/>
-            <rect x="-11" y="-4" width="22" height="5" fill="rgba(201,168,76,0.18)"/>
-            <!-- gold calligraphy line (simplified) -->
-            <line x1="-8" y1="-1.5" x2="8" y2="-1.5" stroke="#C9A84C" stroke-width="0.8" opacity="0.7"/>
-            <!-- door (gold rectangle lower center) -->
-            <rect x="-3" y="3" width="6" height="6" rx="0.5" fill="#C9A84C" opacity="0.9"/>
-            <!-- door arch top -->
-            <path d="M-3,3 Q0,1 3,3" fill="none" stroke="#C9A84C" stroke-width="0.8"/>
-            <!-- top edge highlight -->
-            <line x1="-11" y1="-11" x2="11" y2="-11" stroke="#E8C97A" stroke-width="0.8" opacity="0.6"/>
+            <rect x="-16" y="-16" width="32" height="28" rx="1.5" fill="#111111" stroke="#C9A84C" stroke-width="1.5"/>
+            <!-- gold kiswa band -->
+            <rect x="-16" y="-5" width="32" height="7" fill="rgba(201,168,76,0.18)" stroke="#C9A84C" stroke-width="0.6"/>
+            <!-- calligraphy line -->
+            <line x1="-12" y1="-1.5" x2="12" y2="-1.5" stroke="#C9A84C" stroke-width="1" opacity="0.75"/>
+            <!-- door -->
+            <rect x="-5" y="5" width="10" height="7" rx="1" fill="#C9A84C" opacity="0.95"/>
+            <!-- door arch -->
+            <path d="M-5,5 Q0,2 5,5" fill="none" stroke="#C9A84C" stroke-width="1"/>
+            <!-- top highlight -->
+            <line x1="-16" y1="-16" x2="16" y2="-16" stroke="#E8C97A" stroke-width="1" opacity="0.6"/>
           </g>
         </svg>
       </div>
@@ -1399,8 +1398,8 @@ body.kids-active>*:not(#kidsMode){ display:none !important; }
         <div id="qDeclCard" style="font-size:13px;font-weight:600;color:#E8C97A">--</div>
       </div>
       <div style="flex:1;background:rgba(42,107,107,0.05);border:1px solid rgba(42,107,107,0.28);border-radius:10px;padding:10px 6px;text-align:center">
-        <div style="font-size:8px;letter-spacing:2px;color:rgba(201,168,76,0.4);text-transform:uppercase;margin-bottom:3px">Distance</div>
-        <div id="qDistCard" style="font-size:13px;font-weight:600;color:#3D9B9B">--</div>
+        <div style="font-size:8px;letter-spacing:2px;color:rgba(201,168,76,0.4);text-transform:uppercase;margin-bottom:3px">Distance to Makkah</div>
+        <div id="qDistCard" style="font-size:11px;font-weight:600;color:#3D9B9B">--</div>
       </div>
       <div style="flex:1;background:rgba(255,255,255,0.025);border:1px solid rgba(201,168,76,0.11);border-radius:10px;padding:10px 6px;text-align:center">
         <div style="font-size:8px;letter-spacing:2px;color:rgba(201,168,76,0.4);text-transform:uppercase;margin-bottom:3px">True North</div>
@@ -1991,18 +1990,21 @@ function qDrawMarks() {
 }
 
 async function qFetchDeclination(lat, lon) {
+  // Use approximation immediately so compass works right away
+  const approx = -2.4 + 0.0184*lat - 0.0028*lon + 0.00018*lat*lon - 0.000012*lat*lat;
+  const fallback = Math.round(approx*10)/10;
+
+  // Try NOAA in background with short timeout — update if it returns
   try {
     const dateStr = new Date().toISOString().slice(0,10);
     const url = `https://www.ngdc.noaa.gov/geomag-web/calculators/calculateDeclination?lat1=${lat}&lon1=${lon}&resultFormat=json&startYear=${dateStr}`;
-    const res = await fetch(url, {signal: AbortSignal.timeout(5000)});
+    const res = await fetch(url, {signal: AbortSignal.timeout(3000)});
     if (!res.ok) throw new Error();
     const data = await res.json();
     const d = data?.result?.[0]?.declination;
     if (d !== undefined && !isNaN(d)) return parseFloat(d.toFixed(2));
   } catch {}
-  // fallback approximation
-  const d = -2.4 + 0.0184*lat - 0.0028*lon + 0.00018*lat*lon - 0.000012*lat*lat;
-  return Math.round(d*10)/10;
+  return fallback;
 }
 
 function qCalcBearing(lat, lon) {
@@ -2024,15 +2026,38 @@ const qCardinals = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WS
 function qGetLabel(b) { return qCardinals[Math.round(b/22.5)%16]; }
 
 async function qLoadQibla(lat, lon) {
-  qSetStatus('Detecting location…');
+  qSetStatus('Calculating bearing…');
 
   qRawBearing = qCalcBearing(lat, lon);
-  qSetStatus('Fetching NOAA magnetic declination…');
-  qDeclination = await qFetchDeclination(lat, lon);
+
+  // Use approximation immediately so compass starts right away
+  const approx = -2.4 + 0.0184*lat - 0.0028*lon + 0.00018*lat*lon - 0.000012*lat*lat;
+  qDeclination = Math.round(approx*10)/10;
   qiblaBearing = ((qRawBearing - qDeclination) + 360) % 360;
 
+  // Render compass immediately
+  qUpdateDisplay(lat, lon);
+  if (!qHasOrientation) {
+    qRenderStatic(qiblaBearing);
+    qSetStatus(`Qibla: ${Math.round(qRawBearing)}° true · Approx declination ${qDeclination>=0?'+':''}${qDeclination}°`, 'success');
+  }
+
+  // Now fetch accurate NOAA declination in background
+  const accurate = await qFetchDeclination(lat, lon);
+  if (accurate !== qDeclination) {
+    qDeclination = accurate;
+    qiblaBearing = ((qRawBearing - qDeclination) + 360) % 360;
+    document.getElementById('qDeclCard').textContent = (qDeclination>=0?'+':'')+qDeclination+'°';
+    qSetStatus(`Qibla: ${Math.round(qRawBearing)}° true · NOAA declination ${qDeclination>=0?'+':''}${qDeclination}°`, 'success');
+    if (!qHasOrientation) qRenderStatic(qiblaBearing);
+  }
+}
+
+async function qUpdateDisplay(lat, lon) {
   const dist = qCalcDistance(lat, lon);
-  const distStr = dist > 1000 ? (dist/1000).toFixed(1)+'k km' : Math.round(dist)+' km';
+  const distKm = Math.round(dist).toLocaleString();
+  const distMi = Math.round(dist * 0.621371).toLocaleString();
+  const distStr = `${distKm} km / ${distMi} mi`;
 
   document.getElementById('qDegNum').textContent = Math.round(qRawBearing) + '°';
   document.getElementById('qDirText').textContent = `Qibla ${qGetLabel(qRawBearing)} · ${Math.round(qRawBearing)}° true`;
@@ -2041,7 +2066,6 @@ async function qLoadQibla(lat, lon) {
   document.getElementById('qDistCard').textContent = distStr;
   document.getElementById('qTrueCard').textContent = Math.round(qRawBearing)+'°';
 
-  // Reverse geocode for location label
   try {
     const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
     const d = await r.json();
@@ -2050,11 +2074,6 @@ async function qLoadQibla(lat, lon) {
     document.getElementById('qLocLabel').textContent = '📍 ' + city + (cc?', '+cc:'');
   } catch {
     document.getElementById('qLocLabel').textContent = `📍 ${lat.toFixed(3)}°, ${lon.toFixed(3)}°`;
-  }
-
-  if (!qHasOrientation) {
-    qRenderStatic(qiblaBearing);
-    qSetStatus(`Qibla: ${Math.round(qRawBearing)}° true · Declination ${qDeclination>=0?'+':''}${qDeclination}° corrected`, 'success');
   }
 }
 

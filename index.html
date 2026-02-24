@@ -1351,15 +1351,25 @@ body.kids-active>*:not(#kidsMode){ display:none !important; }
         <line x1="150" y1="150" x2="150" y2="44" stroke="url(#qGrad2)" stroke-width="2" stroke-dasharray="5 4"/>
         <circle cx="150" cy="44" r="4" fill="#3D9B9B"/>
       </svg>
-      <!-- Kaaba marker -->
-      <div id="qKaaba" style="position:absolute;top:50%;left:50%;width:36px;height:36px;margin:-18px 0 0 -18px;transform-origin:center;transition:transform 0.28s cubic-bezier(0.25,0.46,0.45,0.94)">
-        <svg viewBox="0 0 36 36" width="36" height="36">
-          <line x1="18" y1="18" x2="18" y2="2" stroke="rgba(42,107,107,0.5)" stroke-width="1.5"/>
-          <g transform="translate(18,0) translate(-10,-10)">
-            <rect x="2" y="3" width="16" height="14" rx="1" fill="#1A1A2E" stroke="#C9A84C" stroke-width="1"/>
-            <rect x="2" y="3" width="16" height="6"  rx="1" fill="#0D0D1A" stroke="#C9A84C" stroke-width="0.5"/>
-            <rect x="2" y="7" width="16" height="1.5" fill="rgba(201,168,76,0.6)"/>
-            <rect x="8" y="11" width="5" height="6" rx="0.5" fill="#C9A84C" opacity="0.8"/>
+      <div id="qKaaba" style="position:absolute;top:50%;left:50%;width:44px;height:44px;margin:-22px 0 0 -22px;transform-origin:center;transition:transform 0.28s cubic-bezier(0.25,0.46,0.45,0.94)">
+        <svg viewBox="0 0 44 44" width="44" height="44">
+          <!-- stem line from center to Kaaba -->
+          <line x1="22" y1="22" x2="22" y2="4" stroke="rgba(61,155,155,0.6)" stroke-width="1.5"/>
+          <!-- Kaaba cube centered at top -->
+          <g transform="translate(22,4)">
+            <!-- main cube body -->
+            <rect x="-11" y="-11" width="22" height="20" rx="1" fill="#111111" stroke="#C9A84C" stroke-width="1.2"/>
+            <!-- gold kiswa band (horizontal stripe) -->
+            <rect x="-11" y="-4" width="22" height="5" fill="none" stroke="#C9A84C" stroke-width="0.5"/>
+            <rect x="-11" y="-4" width="22" height="5" fill="rgba(201,168,76,0.18)"/>
+            <!-- gold calligraphy line (simplified) -->
+            <line x1="-8" y1="-1.5" x2="8" y2="-1.5" stroke="#C9A84C" stroke-width="0.8" opacity="0.7"/>
+            <!-- door (gold rectangle lower center) -->
+            <rect x="-3" y="3" width="6" height="6" rx="0.5" fill="#C9A84C" opacity="0.9"/>
+            <!-- door arch top -->
+            <path d="M-3,3 Q0,1 3,3" fill="none" stroke="#C9A84C" stroke-width="0.8"/>
+            <!-- top edge highlight -->
+            <line x1="-11" y1="-11" x2="11" y2="-11" stroke="#E8C97A" stroke-width="0.8" opacity="0.6"/>
           </g>
         </svg>
       </div>
@@ -2118,25 +2128,41 @@ function qStartOrientation() {
 function qHandleOrientation(e) {
   // Only process when qibla screen is open
   if (document.getElementById('qiblaOverlay').style.display === 'none') return;
-  if (qiblaBearing === null) return;
+  if (qRawBearing === null) return;
 
-  let alpha;
-  if (e.absolute && e.alpha !== null) {
-    alpha = e.alpha; // Android absolute — true north
-  } else if (typeof e.webkitCompassHeading !== 'undefined' && e.webkitCompassHeading !== null) {
-    // iOS — already true north, use raw bearing (no manual declination correction)
-    alpha = e.webkitCompassHeading;
+  // ── iOS Safari ──────────────────────────────────────────────────
+  // webkitCompassHeading = degrees clockwise from TRUE north (built-in declination)
+  // So we use qRawBearing directly — no manual declination needed
+  if (typeof e.webkitCompassHeading === 'number' && e.webkitCompassHeading !== null) {
+    const heading = e.webkitCompassHeading;
     qHasOrientation = true;
-    qUpdateStability(alpha);
-    qRenderCompass(alpha, qRawBearing);
+    qUpdateStability(heading);
+    qRenderCompass(heading, qRawBearing);
     return;
-  } else if (e.alpha !== null) {
-    alpha = (360 - e.alpha) % 360; // Android fallback magnetic
-  } else return;
+  }
 
-  qHasOrientation = true;
-  qUpdateStability(alpha);
-  qRenderCompass(alpha, qiblaBearing);
+  // ── Android absolute (true north) ───────────────────────────────
+  // deviceorientationabsolute: alpha = degrees counterclockwise from true north
+  // Convert to clockwise: heading = (360 - alpha) % 360
+  // Then use qRawBearing (true bearing) directly
+  if (e.absolute === true && e.alpha !== null) {
+    const heading = (360 - e.alpha) % 360;
+    qHasOrientation = true;
+    qUpdateStability(heading);
+    qRenderCompass(heading, qRawBearing);
+    return;
+  }
+
+  // ── Android fallback (magnetic north) ───────────────────────────
+  // deviceorientation non-absolute: alpha = degrees counterclockwise from magnetic north
+  // Convert to clockwise: heading = (360 - alpha) % 360
+  // Use qiblaBearing (which has declination subtracted) to compensate
+  if (e.alpha !== null) {
+    const heading = (360 - e.alpha) % 360;
+    qHasOrientation = true;
+    qUpdateStability(heading);
+    qRenderCompass(heading, qiblaBearing);
+  }
 }
 
 

@@ -1352,25 +1352,10 @@ body.kids-active>*:not(#kidsMode){ display:none !important; }
         <circle cx="150" cy="44" r="4" fill="#3D9B9B"/>
       </svg>
       <div id="qKaaba" style="position:absolute;top:50%;left:50%;width:64px;height:64px;margin:-32px 0 0 -32px;transform-origin:center;transition:transform 0.28s cubic-bezier(0.25,0.46,0.45,0.94)">
-        <svg viewBox="0 0 64 64" width="64" height="64">
-          <!-- stem line from center to Kaaba -->
-          <line x1="32" y1="32" x2="32" y2="6" stroke="rgba(61,155,155,0.6)" stroke-width="1.5"/>
-          <!-- Kaaba cube centered at top -->
-          <g transform="translate(32,6)">
-            <!-- main cube body -->
-            <rect x="-16" y="-16" width="32" height="28" rx="1.5" fill="#111111" stroke="#C9A84C" stroke-width="1.5"/>
-            <!-- gold kiswa band -->
-            <rect x="-16" y="-5" width="32" height="7" fill="rgba(201,168,76,0.18)" stroke="#C9A84C" stroke-width="0.6"/>
-            <!-- calligraphy line -->
-            <line x1="-12" y1="-1.5" x2="12" y2="-1.5" stroke="#C9A84C" stroke-width="1" opacity="0.75"/>
-            <!-- door -->
-            <rect x="-5" y="5" width="10" height="7" rx="1" fill="#C9A84C" opacity="0.95"/>
-            <!-- door arch -->
-            <path d="M-5,5 Q0,2 5,5" fill="none" stroke="#C9A84C" stroke-width="1"/>
-            <!-- top highlight -->
-            <line x1="-16" y1="-16" x2="16" y2="-16" stroke="#E8C97A" stroke-width="1" opacity="0.6"/>
-          </g>
-        </svg>
+        <div style="display:flex;flex-direction:column;align-items:center;line-height:1">
+          <div style="width:2px;height:30px;background:rgba(61,155,155,0.6)"></div>
+          <div style="font-size:48px;filter:drop-shadow(0 0 8px rgba(201,168,76,0.6))">🕋</div>
+        </div>
       </div>
       <!-- Fixed needle (always points N) -->
       <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
@@ -2080,13 +2065,13 @@ async function qUpdateDisplay(lat, lon) {
 function qRenderCompass(heading, correctedQibla) {
   document.getElementById('qDial').style.transform  = `rotate(${-heading}deg)`;
   document.getElementById('qLine').style.transform  = `rotate(${correctedQibla - heading}deg)`;
-  document.getElementById('qKaaba').style.transform = `rotate(${correctedQibla - heading}deg) translateY(-95px)`;
+  document.getElementById('qKaaba').style.transform = `rotate(${correctedQibla - heading}deg) translateY(-105px)`;
 }
 
 function qRenderStatic(correctedQibla) {
   document.getElementById('qDial').style.transform  = 'rotate(0deg)';
   document.getElementById('qLine').style.transform  = `rotate(${correctedQibla}deg)`;
-  document.getElementById('qKaaba').style.transform = `rotate(${correctedQibla}deg) translateY(-95px)`;
+  document.getElementById('qKaaba').style.transform = `rotate(${correctedQibla}deg) translateY(-105px)`;
 }
 
 function qSetStatus(msg, type) {

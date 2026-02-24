@@ -1345,19 +1345,24 @@ body.kids-active>*:not(#kidsMode){ display:none !important; }
         </g>
       </svg>
       <!-- Qibla line -->
-      <svg id="qLine" viewBox="0 0 300 300" style="position:absolute;inset:0;width:260px;height:260px;transition:transform 0.28s cubic-bezier(0.25,0.46,0.45,0.94)">
+      <svg id="qLine" viewBox="0 0 300 300" style="position:absolute;inset:0;width:260px;height:260px;overflow:visible;transition:transform 0.28s cubic-bezier(0.25,0.46,0.45,0.94)">
         <defs>
           <linearGradient id="qGrad2" x1="0" y1="1" x2="0" y2="0">
             <stop offset="0%" stop-color="rgba(42,107,107,0)"/>
-            <stop offset="100%" stop-color="rgba(61,155,155,0.9)"/>
+            <stop offset="60%" stop-color="rgba(61,155,155,0.7)"/>
+            <stop offset="100%" stop-color="rgba(61,155,155,0.95)"/>
           </linearGradient>
         </defs>
-        <line x1="150" y1="150" x2="150" y2="44" stroke="url(#qGrad2)" stroke-width="2" stroke-dasharray="5 4"/>
-        <circle cx="150" cy="44" r="4" fill="#3D9B9B"/>
+        <!-- Line from center (150,150) all the way past ring to Kaaba (~y=-30 in viewBox = y=180 above center) -->
+        <line x1="150" y1="150" x2="150" y2="-30" stroke="url(#qGrad2)" stroke-width="2.5" stroke-dasharray="6 4"/>
+        <!-- Glowing dot at Kaaba end -->
+        <circle cx="150" cy="-30" r="5" fill="#3D9B9B" opacity="0.9"/>
+        <circle cx="150" cy="-30" r="9" fill="none" stroke="rgba(61,155,155,0.35)" stroke-width="1.5"/>
+        <!-- Center dot -->
+        <circle cx="150" cy="150" r="4" fill="#3D9B9B" opacity="0.6"/>
       </svg>
       <div id="qKaaba" style="position:absolute;top:50%;left:50%;width:64px;height:64px;margin:-32px 0 0 -32px;transform-origin:center;transition:transform 0.28s cubic-bezier(0.25,0.46,0.45,0.94)">
         <div style="display:flex;flex-direction:column;align-items:center;line-height:1">
-          <div style="width:2px;height:30px;background:rgba(61,155,155,0.6)"></div>
           <div style="font-size:48px;filter:drop-shadow(0 0 8px rgba(201,168,76,0.6))">🕋</div>
         </div>
       </div>

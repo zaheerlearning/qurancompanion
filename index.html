@@ -220,12 +220,38 @@ button{ background:var(--accent); color:white; }
 .hw-live-btn:hover{ background:rgba(201,168,76,.28); }
 .hw-live-btn.active{ background:rgba(201,168,76,.28); outline:2px solid rgba(201,168,76,.6); }
 .hw-panel-wrap{
-  display:none; margin-top:10px;
-  border-radius:12px; overflow:hidden;
-  border:1px solid rgba(201,168,76,.25);
-  background:rgba(0,0,0,.25);
+  display:none;
+  max-width:1000px; margin:0 auto 0;
+  padding:0 15px 12px;
+  box-sizing:border-box;
 }
 .hw-panel-wrap.open{ display:block; }
+.hw-panel-wrap .hw-panel-header,
+.hw-panel-wrap .hw-mob-tabs,
+.hw-panel-wrap .hw-streams-grid,
+.hw-panel-wrap .hw-note{
+  background:transparent;
+}
+/* Inner wrapper for the green card look matching app */
+.hw-panel-wrap > .hw-panel-header{
+  background:linear-gradient(135deg,#053d2a,#064e3b);
+  border-radius:14px 14px 0 0;
+  padding:8px 14px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.hw-panel-wrap > .hw-mob-tabs{
+  background:linear-gradient(135deg,#053d2a,#064e3b);
+  padding:6px 10px;
+}
+.hw-panel-wrap > .hw-streams-grid{
+  background:linear-gradient(135deg,#053d2a,#064e3b);
+  padding:10px;
+}
+.hw-panel-wrap > .hw-note{
+  background:linear-gradient(135deg,#053d2a,#064e3b);
+  border-radius:0 0 14px 14px;
+  border-top:1px solid rgba(255,255,255,.06);
+}
 .hw-streams-grid{
   display:grid;
   grid-template-columns:1fr 1fr;
@@ -1301,107 +1327,107 @@ body.kids-active>*:not(#kidsMode){ display:none !important; }
     <!-- Masjid list -->
     <div class="masjid-list" id="masjidList"></div>
 
-    <!-- ══ HARAMAYN LIVE PANEL ══ -->
-    <div class="hw-panel-wrap" id="hwPanelWrap">
-
-      <!-- Panel header with close button -->
-      <div class="hw-panel-header">
-        <span class="hw-panel-title">🕋 Al-Haramayn Live · الحرمين الشريفين</span>
-        <button class="hw-close-btn" onclick="hwClose()" title="Close and stop stream">✕ Close</button>
-      </div>
-
-      <!-- Mobile tabs -->
-      <div class="hw-mob-tabs">
-        <button class="hw-mob-tab active" data-hw="makkah" onclick="hwSwitchTab('makkah')">🕋 Makkah · مكة</button>
-        <button class="hw-mob-tab"        data-hw="madinah" onclick="hwSwitchTab('madinah')">🌿 Madinah · المدينة</button>
-      </div>
-
-      <div class="hw-streams-grid">
-
-        <!-- Makkah -->
-        <div class="hw-stream-b" id="hwCard-makkah">
-          <div class="hw-stream-bar">
-            <div>
-              <span class="hw-stream-ar">مكة المكرمة</span>
-              <span class="hw-stream-name">Masjid Al-Haram · Makkah</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:6px">
-              <div class="hw-badge connecting" id="hwBadge-makkah">
-                <div class="hw-badge-dot"></div>
-                <span id="hwBadgeTxt-makkah">Loading</span>
-              </div>
-              <button class="hw-card-x" onclick="hwCloseCard('makkah')" title="Close Makkah stream">✕</button>
-            </div>
-          </div>
-          <div class="hw-vid-wrap">
-            <video id="hwVid-makkah" controls playsinline muted></video>
-            <div class="hw-overlay-div" id="hwOv-makkah">
-              <div class="hw-spin" id="hwSpin-makkah"></div>
-              <div class="hw-overlay-lbl" id="hwOvLbl-makkah">Connecting…</div>
-              <div class="hw-err-block" id="hwErr-makkah">
-                <div style="font-size:1.3rem;opacity:.5">⚠</div>
-                <p class="hw-err-txt">Stream unavailable.<br>Try VPN if outside MENA.</p>
-                <button class="hw-retry-btn" onclick="hwRetry('makkah')">Retry</button>
-              </div>
-            </div>
-          </div>
-          <div class="hw-vid-footer">
-            <span>قناة القرآن الكريم · Al-Quran Al-Kareem TV</span>
-            <span>SBA · Live</span>
-          </div>
-        </div>
-        <!-- Makkah reopen bar -->
-        <div class="hw-reopen-bar" id="hwReopen-makkah" style="display:none">
-          <span class="hw-reopen-label">🕋 Makkah stream closed</span>
-          <button class="hw-reopen-btn" onclick="hwReopenCard('makkah')">▶ Reopen</button>
-        </div>
-
-        <!-- Madinah -->
-        <div class="hw-stream-b" id="hwCard-madinah">
-          <div class="hw-stream-bar">
-            <div>
-              <span class="hw-stream-ar">المدينة المنورة</span>
-              <span class="hw-stream-name">Masjid An-Nabawi · Madinah</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:6px">
-              <div class="hw-badge connecting" id="hwBadge-madinah">
-                <div class="hw-badge-dot"></div>
-                <span id="hwBadgeTxt-madinah">Loading</span>
-              </div>
-              <button class="hw-card-x" onclick="hwCloseCard('madinah')" title="Close Madinah stream">✕</button>
-            </div>
-          </div>
-          <div class="hw-vid-wrap">
-            <video id="hwVid-madinah" controls playsinline muted></video>
-            <div class="hw-overlay-div" id="hwOv-madinah">
-              <div class="hw-spin" id="hwSpin-madinah"></div>
-              <div class="hw-overlay-lbl" id="hwOvLbl-madinah">Connecting…</div>
-              <div class="hw-err-block" id="hwErr-madinah">
-                <div style="font-size:1.3rem;opacity:.5">⚠</div>
-                <p class="hw-err-txt">Stream unavailable.<br>Try VPN if outside MENA.</p>
-                <button class="hw-retry-btn" onclick="hwRetry('madinah')">Retry</button>
-              </div>
-            </div>
-          </div>
-          <div class="hw-vid-footer">
-            <span>قناة السنة النبوية · Al-Sunnah Al-Nabawiyah TV</span>
-            <span>SBA · Live</span>
-          </div>
-        </div>
-        <!-- Madinah reopen bar -->
-        <div class="hw-reopen-bar" id="hwReopen-madinah" style="display:none">
-          <span class="hw-reopen-label">🌿 Madinah stream closed</span>
-          <button class="hw-reopen-btn" onclick="hwReopenCard('madinah')">▶ Reopen</button>
-        </div>
-
-      </div><!-- .hw-streams-grid -->
-      <div class="hw-note">Direct from Saudi Broadcasting Authority via Akamai CDN · No third-party platform · VPN may be needed outside MENA</div>
-    </div><!-- #hwPanelWrap -->
-    <!-- ══ END HARAMAYN LIVE PANEL ══ -->
-
   </div>
 </div>
 </div><!-- /stickyTop -->
+
+<!-- ══ HARAMAYN LIVE PANEL (outside sticky, scrolls normally) ══ -->
+<div class="hw-panel-wrap" id="hwPanelWrap">
+
+  <!-- Panel header with close button -->
+  <div class="hw-panel-header">
+    <span class="hw-panel-title">🕋 Al-Haramayn Live · الحرمين الشريفين</span>
+    <button class="hw-close-btn" onclick="hwClose()" title="Close and stop stream">✕ Close</button>
+  </div>
+
+  <!-- Mobile tabs -->
+  <div class="hw-mob-tabs">
+    <button class="hw-mob-tab active" data-hw="makkah" onclick="hwSwitchTab('makkah')">🕋 Makkah · مكة</button>
+    <button class="hw-mob-tab"        data-hw="madinah" onclick="hwSwitchTab('madinah')">🌿 Madinah · المدينة</button>
+  </div>
+
+  <div class="hw-streams-grid">
+
+    <!-- Makkah -->
+    <div class="hw-stream-b" id="hwCard-makkah">
+      <div class="hw-stream-bar">
+        <div>
+          <span class="hw-stream-ar">مكة المكرمة</span>
+          <span class="hw-stream-name">Masjid Al-Haram · Makkah</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div class="hw-badge connecting" id="hwBadge-makkah">
+            <div class="hw-badge-dot"></div>
+            <span id="hwBadgeTxt-makkah">Loading</span>
+          </div>
+          <button class="hw-card-x" onclick="hwCloseCard('makkah')" title="Close Makkah stream">✕</button>
+        </div>
+      </div>
+      <div class="hw-vid-wrap">
+        <video id="hwVid-makkah" controls playsinline muted></video>
+        <div class="hw-overlay-div" id="hwOv-makkah">
+          <div class="hw-spin" id="hwSpin-makkah"></div>
+          <div class="hw-overlay-lbl" id="hwOvLbl-makkah">Connecting…</div>
+          <div class="hw-err-block" id="hwErr-makkah">
+            <div style="font-size:1.3rem;opacity:.5">⚠</div>
+            <p class="hw-err-txt">Stream unavailable.<br>Try VPN if outside MENA.</p>
+            <button class="hw-retry-btn" onclick="hwRetry('makkah')">Retry</button>
+          </div>
+        </div>
+      </div>
+      <div class="hw-vid-footer">
+        <span>قناة القرآن الكريم · Al-Quran Al-Kareem TV</span>
+        <span>SBA · Live</span>
+      </div>
+    </div>
+    <!-- Makkah reopen bar -->
+    <div class="hw-reopen-bar" id="hwReopen-makkah" style="display:none">
+      <span class="hw-reopen-label">🕋 Makkah stream closed</span>
+      <button class="hw-reopen-btn" onclick="hwReopenCard('makkah')">▶ Reopen</button>
+    </div>
+
+    <!-- Madinah -->
+    <div class="hw-stream-b" id="hwCard-madinah">
+      <div class="hw-stream-bar">
+        <div>
+          <span class="hw-stream-ar">المدينة المنورة</span>
+          <span class="hw-stream-name">Masjid An-Nabawi · Madinah</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div class="hw-badge connecting" id="hwBadge-madinah">
+            <div class="hw-badge-dot"></div>
+            <span id="hwBadgeTxt-madinah">Loading</span>
+          </div>
+          <button class="hw-card-x" onclick="hwCloseCard('madinah')" title="Close Madinah stream">✕</button>
+        </div>
+      </div>
+      <div class="hw-vid-wrap">
+        <video id="hwVid-madinah" controls playsinline muted></video>
+        <div class="hw-overlay-div" id="hwOv-madinah">
+          <div class="hw-spin" id="hwSpin-madinah"></div>
+          <div class="hw-overlay-lbl" id="hwOvLbl-madinah">Connecting…</div>
+          <div class="hw-err-block" id="hwErr-madinah">
+            <div style="font-size:1.3rem;opacity:.5">⚠</div>
+            <p class="hw-err-txt">Stream unavailable.<br>Try VPN if outside MENA.</p>
+            <button class="hw-retry-btn" onclick="hwRetry('madinah')">Retry</button>
+          </div>
+        </div>
+      </div>
+      <div class="hw-vid-footer">
+        <span>قناة السنة النبوية · Al-Sunnah Al-Nabawiyah TV</span>
+        <span>SBA · Live</span>
+      </div>
+    </div>
+    <!-- Madinah reopen bar -->
+    <div class="hw-reopen-bar" id="hwReopen-madinah" style="display:none">
+      <span class="hw-reopen-label">🌿 Madinah stream closed</span>
+      <button class="hw-reopen-btn" onclick="hwReopenCard('madinah')">▶ Reopen</button>
+    </div>
+
+  </div><!-- .hw-streams-grid -->
+  <div class="hw-note">Direct from Saudi Broadcasting Authority via Akamai CDN · No third-party platform · VPN may be needed outside MENA</div>
+</div><!-- #hwPanelWrap -->
+<!-- ══ END HARAMAYN LIVE PANEL ══ -->
 
 <!-- ══ HADITH CARD ══ -->
 <div id="hadithCard">

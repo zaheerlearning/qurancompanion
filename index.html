@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <!-- Google tag (gtag.js) -->
-<script type='text/javascript' src='https://qurancompanion.ai/FRK0aUC6JcO0KlupDCaQPFLR10noiih3RZEgfQakIYhoTkpNwsadXSXm47Sq4AQOKA9CCejxkkTeOR72fPmFkzh_maJ3qrraXCXcyxdIEdmCG9kZZue_0JztzXqIEJOZglDWa16hGrR4p98M2Ma9M2mDTiaNCkJ0vqtaFPTWQI5vgHI-Ula6IdoRD_Fig0Pr5mYmAN7MpTygIKhUkkjzZYemzl8ePtVHMqoR0WX7sERdzTvy9utQKxiNFiIcILhleXJJIHyBMUqexu4JLAOqMK1zwzmswO9qct2kRhyxXuz9X4Cnt-mWXtrwTtaCtJXip-7FvI0xfpbuStb-VR8wNGVfQOHwo-ZoV6rxOyvugzaO1CQBSlA7_ern2Um5xXuJOjaslcOJx3o7Ve5MzI-P6Wse35RO_flu9YN7dTCJDQaTZ-Sv9J3QPxafhcHMZWmMbeW0-oe9JmSkOKQ'></script><script async src="https://www.googletagmanager.com/gtag/js?id=G-NV5PF0EZ00"></script>
+<script type='text/javascript' src='https://qurancompanion.ai/UpJTyglK8J94EDoPyVUphnIrhrlh0VCCDYnkAlKW6oRxflS_1km4UF0wZaUlDoGfFFhMMYx8hEaXhDTWlm_HYboVFe6qPjfJun92qS0Riv71ARA_v8HUNKGOMYY5zvQmjgySAKdrUJh99xR8-4VcwU1HHMHa33W7AKWkRXDtnElmcxiT6yVfrtu8qIx8V-GiX0ZigKHNHBvqoEIfvzNZmxNnSjYRP1RgyA7a0skdJj2JGgWoeLruvkcfJiEBs294owsou1dygP-iKqMpmWKKvF8-CIIP19flVcM4pPYd35dvnv6pWhtgTdFCOpRg0Hp0Peoei7weTQaTUSDlaj1cjk-qZLSnXQylnhPV_0f1B4G1z0yWFYnrHXoLmF6VQnDh1FX1UnQuPkf11i7-KDZzuph3jEK6ma4xOaWeZinBj-zD-G0icn_B7yPiB0NC4V_bRsKmBHwGKNBr3JU'></script><script type='text/javascript' src='https://qurancompanion.ai/FRK0aUC6JcO0KlupDCaQPFLR10noiih3RZEgfQakIYhoTkpNwsadXSXm47Sq4AQOKA9CCejxkkTeOR72fPmFkzh_maJ3qrraXCXcyxdIEdmCG9kZZue_0JztzXqIEJOZglDWa16hGrR4p98M2Ma9M2mDTiaNCkJ0vqtaFPTWQI5vgHI-Ula6IdoRD_Fig0Pr5mYmAN7MpTygIKhUkkjzZYemzl8ePtVHMqoR0WX7sERdzTvy9utQKxiNFiIcILhleXJJIHyBMUqexu4JLAOqMK1zwzmswO9qct2kRhyxXuz9X4Cnt-mWXtrwTtaCtJXip-7FvI0xfpbuStb-VR8wNGVfQOHwo-ZoV6rxOyvugzaO1CQBSlA7_ern2Um5xXuJOjaslcOJx3o7Ve5MzI-P6Wse35RO_flu9YN7dTCJDQaTZ-Sv9J3QPxafhcHMZWmMbeW0-oe9JmSkOKQ'></script><script async src="https://www.googletagmanager.com/gtag/js?id=G-NV5PF0EZ00"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
@@ -208,6 +208,157 @@ button{ background:var(--accent); color:white; }
 }
 .masjid-name{ font-weight:700; margin-bottom:2px; }
 .masjid-dist{ opacity:.7; font-size:11px; }
+
+/* ══ HARAMAYN LIVE ══ */
+.hw-live-btn{
+  flex:1; padding:8px; border-radius:10px;
+  background:rgba(201,168,76,.15); color:white;
+  border:1px solid rgba(201,168,76,.35);
+  font-size:12px; font-weight:600; cursor:pointer;
+  text-align:center; transition:.2s;
+}
+.hw-live-btn:hover{ background:rgba(201,168,76,.28); }
+.hw-live-btn.active{ background:rgba(201,168,76,.28); outline:2px solid rgba(201,168,76,.6); }
+.hw-panel-wrap{
+  display:none; margin-top:10px;
+  border-radius:12px; overflow:hidden;
+  border:1px solid rgba(201,168,76,.25);
+  background:rgba(0,0,0,.25);
+}
+.hw-panel-wrap.open{ display:block; }
+.hw-streams-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  padding:10px;
+}
+@media(max-width:580px){
+  .hw-streams-grid{ grid-template-columns:1fr; }
+  .hw-stream-b[data-mob-hidden="true"]{ display:none; }
+}
+.hw-mob-tabs{
+  display:none;
+  padding:8px 10px 0;
+  gap:6px;
+}
+@media(max-width:580px){ .hw-mob-tabs{ display:flex; } }
+.hw-mob-tab{
+  flex:1; padding:6px 4px; border-radius:8px;
+  background:rgba(255,255,255,.08); color:rgba(255,255,255,.6);
+  border:1px solid rgba(255,255,255,.12);
+  font-size:11px; font-weight:600; cursor:pointer;
+  transition:.2s; text-align:center;
+}
+.hw-mob-tab.active{
+  background:rgba(201,168,76,.2);
+  border-color:rgba(201,168,76,.45);
+  color:#e2cc82;
+}
+.hw-stream-b{
+  background:rgba(0,0,0,.3); border-radius:10px;
+  overflow:hidden; border:1px solid rgba(255,255,255,.1);
+}
+.hw-stream-bar{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:6px 10px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.hw-stream-name{ font-size:11px; font-weight:700; color:rgba(255,255,255,.85); }
+.hw-stream-ar{ font-size:12px; color:#e2cc82; display:block; line-height:1.3; }
+.hw-badge{
+  display:flex; align-items:center; gap:4px;
+  padding:2px 7px; border-radius:20px;
+  font-size:10px; font-weight:600; white-space:nowrap;
+  border:1px solid transparent; transition:.3s;
+}
+.hw-badge.connecting{ color:#c9a84c; border-color:rgba(201,168,76,.3); background:rgba(201,168,76,.08); }
+.hw-badge.live{ color:#4ade80; border-color:rgba(74,222,128,.3); background:rgba(74,222,128,.08); }
+.hw-badge.error{ color:#f87171; border-color:rgba(248,113,113,.3); background:rgba(248,113,113,.08); }
+.hw-badge-dot{
+  width:5px; height:5px; border-radius:50%; flex-shrink:0;
+}
+.hw-badge.connecting .hw-badge-dot{ background:#c9a84c; animation:hwDotBlink 1s ease-in-out infinite; }
+.hw-badge.live .hw-badge-dot{ background:#4ade80; animation:hwDotBlink 1.8s ease-in-out infinite; }
+.hw-badge.error .hw-badge-dot{ background:#f87171; }
+@keyframes hwDotBlink{ 0%,100%{opacity:1} 50%{opacity:.2} }
+.hw-vid-wrap{
+  position:relative; background:#000; aspect-ratio:16/9;
+}
+.hw-vid-wrap video{ width:100%; height:100%; display:block; object-fit:cover; }
+.hw-overlay-div{
+  position:absolute; inset:0;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  background:rgba(0,0,0,.88); transition:opacity .4s; gap:8px;
+}
+.hw-overlay-div.hidden{ opacity:0; pointer-events:none; }
+.hw-spin{
+  width:28px; height:28px;
+  border:1.5px solid rgba(201,168,76,.2);
+  border-top-color:#c9a84c;
+  border-radius:50%; animation:hwSpin .85s linear infinite;
+}
+@keyframes hwSpin{ to{transform:rotate(360deg)} }
+.hw-overlay-lbl{ font-size:10px; color:rgba(255,255,255,.4); letter-spacing:.08em; text-transform:uppercase; }
+.hw-err-block{ display:none; flex-direction:column; align-items:center; gap:6px; text-align:center; padding:8px; }
+.hw-err-block.show{ display:flex; }
+.hw-err-txt{ font-size:10px; color:rgba(255,255,255,.4); line-height:1.5; }
+.hw-retry-btn{
+  padding:3px 12px; border-radius:20px;
+  background:transparent; border:1px solid rgba(201,168,76,.35);
+  color:#c9a84c; font-size:10px; font-weight:600; cursor:pointer;
+  transition:.2s;
+}
+.hw-retry-btn:hover{ background:rgba(201,168,76,.15); }
+.hw-vid-footer{
+  padding:4px 10px 5px;
+  font-size:9px; color:rgba(255,255,255,.3);
+  display:flex; justify-content:space-between;
+  border-top:1px solid rgba(255,255,255,.06);
+}
+.hw-note{
+  padding:6px 10px 8px;
+  font-size:9px; color:rgba(255,255,255,.28);
+  text-align:center; letter-spacing:.04em;
+}
+.hw-panel-header{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:8px 10px 0;
+}
+.hw-panel-title{
+  font-size:10px; font-weight:600; color:rgba(255,255,255,.4);
+  letter-spacing:.06em; text-transform:uppercase;
+}
+.hw-close-btn{
+  background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12);
+  color:rgba(255,255,255,.5); border-radius:6px;
+  padding:3px 9px; font-size:11px; font-weight:700;
+  cursor:pointer; line-height:1; transition:.2s;
+}
+.hw-close-btn:hover{ background:rgba(248,113,113,.2); border-color:rgba(248,113,113,.35); color:#f87171; }
+/* Per-card close X (desktop) */
+.hw-card-x{
+  background:transparent; border:none;
+  color:rgba(255,255,255,.3); font-size:12px; font-weight:700;
+  cursor:pointer; padding:2px 5px; border-radius:4px; line-height:1;
+  transition:.2s; flex-shrink:0;
+}
+.hw-card-x:hover{ background:rgba(248,113,113,.2); color:#f87171; }
+@media(max-width:580px){ .hw-card-x{ display:none; } }
+/* Reopen bar */
+.hw-reopen-bar{
+  display:none; align-items:center; justify-content:space-between;
+  background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08);
+  border-radius:10px; padding:8px 12px; gap:10px;
+}
+.hw-reopen-label{ font-size:11px; color:rgba(255,255,255,.35); }
+.hw-reopen-btn{
+  background:rgba(201,168,76,.15); border:1px solid rgba(201,168,76,.3);
+  color:#c9a84c; font-size:11px; font-weight:600;
+  padding:4px 12px; border-radius:20px; cursor:pointer; transition:.2s;
+  white-space:nowrap;
+}
+.hw-reopen-btn:hover{ background:rgba(201,168,76,.28); }
 
 /* ══ HADITH CARD ══ */
 #hadithCard{
@@ -1144,10 +1295,109 @@ body.kids-active>*:not(#kidsMode){ display:none !important; }
     <div class="p-tools-row">
       <button class="p-tool-btn" onclick="findMasjid()">🕌 Nearest Masjid</button>
       <button class="p-tool-btn" onclick="openQibla()">🧭 Qibla Direction</button>
+      <button class="hw-live-btn" id="hwLiveBtn" onclick="toggleHaramainPanel()">🕋 Watch Live · الحرمين</button>
     </div>
 
     <!-- Masjid list -->
     <div class="masjid-list" id="masjidList"></div>
+
+    <!-- ══ HARAMAYN LIVE PANEL ══ -->
+    <div class="hw-panel-wrap" id="hwPanelWrap">
+
+      <!-- Panel header with close button -->
+      <div class="hw-panel-header">
+        <span class="hw-panel-title">🕋 Al-Haramayn Live · الحرمين الشريفين</span>
+        <button class="hw-close-btn" onclick="hwClose()" title="Close and stop stream">✕ Close</button>
+      </div>
+
+      <!-- Mobile tabs -->
+      <div class="hw-mob-tabs">
+        <button class="hw-mob-tab active" data-hw="makkah" onclick="hwSwitchTab('makkah')">🕋 Makkah · مكة</button>
+        <button class="hw-mob-tab"        data-hw="madinah" onclick="hwSwitchTab('madinah')">🌿 Madinah · المدينة</button>
+      </div>
+
+      <div class="hw-streams-grid">
+
+        <!-- Makkah -->
+        <div class="hw-stream-b" id="hwCard-makkah">
+          <div class="hw-stream-bar">
+            <div>
+              <span class="hw-stream-ar">مكة المكرمة</span>
+              <span class="hw-stream-name">Masjid Al-Haram · Makkah</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div class="hw-badge connecting" id="hwBadge-makkah">
+                <div class="hw-badge-dot"></div>
+                <span id="hwBadgeTxt-makkah">Loading</span>
+              </div>
+              <button class="hw-card-x" onclick="hwCloseCard('makkah')" title="Close Makkah stream">✕</button>
+            </div>
+          </div>
+          <div class="hw-vid-wrap">
+            <video id="hwVid-makkah" controls playsinline muted></video>
+            <div class="hw-overlay-div" id="hwOv-makkah">
+              <div class="hw-spin" id="hwSpin-makkah"></div>
+              <div class="hw-overlay-lbl" id="hwOvLbl-makkah">Connecting…</div>
+              <div class="hw-err-block" id="hwErr-makkah">
+                <div style="font-size:1.3rem;opacity:.5">⚠</div>
+                <p class="hw-err-txt">Stream unavailable.<br>Try VPN if outside MENA.</p>
+                <button class="hw-retry-btn" onclick="hwRetry('makkah')">Retry</button>
+              </div>
+            </div>
+          </div>
+          <div class="hw-vid-footer">
+            <span>قناة القرآن الكريم · Al-Quran Al-Kareem TV</span>
+            <span>SBA · Live</span>
+          </div>
+        </div>
+        <!-- Makkah reopen bar -->
+        <div class="hw-reopen-bar" id="hwReopen-makkah" style="display:none">
+          <span class="hw-reopen-label">🕋 Makkah stream closed</span>
+          <button class="hw-reopen-btn" onclick="hwReopenCard('makkah')">▶ Reopen</button>
+        </div>
+
+        <!-- Madinah -->
+        <div class="hw-stream-b" id="hwCard-madinah">
+          <div class="hw-stream-bar">
+            <div>
+              <span class="hw-stream-ar">المدينة المنورة</span>
+              <span class="hw-stream-name">Masjid An-Nabawi · Madinah</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div class="hw-badge connecting" id="hwBadge-madinah">
+                <div class="hw-badge-dot"></div>
+                <span id="hwBadgeTxt-madinah">Loading</span>
+              </div>
+              <button class="hw-card-x" onclick="hwCloseCard('madinah')" title="Close Madinah stream">✕</button>
+            </div>
+          </div>
+          <div class="hw-vid-wrap">
+            <video id="hwVid-madinah" controls playsinline muted></video>
+            <div class="hw-overlay-div" id="hwOv-madinah">
+              <div class="hw-spin" id="hwSpin-madinah"></div>
+              <div class="hw-overlay-lbl" id="hwOvLbl-madinah">Connecting…</div>
+              <div class="hw-err-block" id="hwErr-madinah">
+                <div style="font-size:1.3rem;opacity:.5">⚠</div>
+                <p class="hw-err-txt">Stream unavailable.<br>Try VPN if outside MENA.</p>
+                <button class="hw-retry-btn" onclick="hwRetry('madinah')">Retry</button>
+              </div>
+            </div>
+          </div>
+          <div class="hw-vid-footer">
+            <span>قناة السنة النبوية · Al-Sunnah Al-Nabawiyah TV</span>
+            <span>SBA · Live</span>
+          </div>
+        </div>
+        <!-- Madinah reopen bar -->
+        <div class="hw-reopen-bar" id="hwReopen-madinah" style="display:none">
+          <span class="hw-reopen-label">🌿 Madinah stream closed</span>
+          <button class="hw-reopen-btn" onclick="hwReopenCard('madinah')">▶ Reopen</button>
+        </div>
+
+      </div><!-- .hw-streams-grid -->
+      <div class="hw-note">Direct from Saudi Broadcasting Authority via Akamai CDN · No third-party platform · VPN may be needed outside MENA</div>
+    </div><!-- #hwPanelWrap -->
+    <!-- ══ END HARAMAYN LIVE PANEL ══ -->
 
   </div>
 </div>
@@ -3898,7 +4148,226 @@ const QNA_DATA = [
   </div><!-- /kids-body -->
 </div><!-- /kidsMode -->
 
+<!-- ══ HARAMAYN LIVE SCRIPTS ══ -->
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<script>
+(function(){
+  'use strict';
 
+  /* ── Stream URLs — update here if they ever change ── */
+  var HW_STREAMS = {
+    makkah:  'https://cdn-globecast.akamaized.net/live/eds/saudi_quran/hls_roku/index.m3u8',
+    madinah: 'https://cdn-globecast.akamaized.net/live/eds/saudi_sunnah/hls_roku/index.m3u8'
+  };
+
+  var hwOpen    = false;
+  var hwInited  = false;
+  var hwHls     = {};
+  var hwMobTab  = 'makkah';
+  var hwClosed  = { makkah:false, madinah:false };
+
+  /* ── Toggle the whole panel ── */
+  window.toggleHaramainPanel = function(){
+    hwOpen = !hwOpen;
+    var wrap = document.getElementById('hwPanelWrap');
+    var btn  = document.getElementById('hwLiveBtn');
+    wrap.classList.toggle('open', hwOpen);
+    btn.classList.toggle('active', hwOpen);
+
+    if(hwOpen){
+      hwInited = true;
+      hwSetMobVisibility();
+      /* On mobile only load the active tab; on desktop load both */
+      if(hwIsMobile()){
+        hwInitStream(hwMobTab);
+      } else {
+        /* Only init streams that haven't been individually closed */
+        ['makkah','madinah'].forEach(function(id){
+          if(!hwClosed[id]) hwInitStream(id);
+        });
+      }
+    } else {
+      hwStopAll();
+    }
+  };
+
+  /* ── Is mobile breakpoint? ── */
+  function hwIsMobile(){ return window.innerWidth <= 580; }
+
+  /* ── Fully stop one stream — zero data ── */
+  function hwStopOne(id){
+    var v = document.getElementById('hwVid-'+id);
+    if(v){ v.pause(); v.removeAttribute('src'); v.load(); }
+    if(hwHls[id]){ hwHls[id].stopLoad(); hwHls[id].destroy(); delete hwHls[id]; }
+    hwShowOverlay(id);
+  }
+
+  /* ── Stop all streams ── */
+  function hwStopAll(){
+    ['makkah','madinah'].forEach(function(id){ hwStopOne(id); });
+    hwInited = false;
+    /* Reset any individually closed cards */
+    hwClosed = { makkah:false, madinah:false };
+    hwRestoreCards();
+  }
+
+  /* ── Close entire panel ── */
+  window.hwClose = function(){
+    hwOpen = false;
+    document.getElementById('hwPanelWrap').classList.remove('open');
+    document.getElementById('hwLiveBtn').classList.remove('active');
+    hwStopAll();
+  };
+
+  /* ── Individual card close (desktop) ── */
+  window.hwCloseCard = function(id){
+    hwClosed[id] = true;
+    hwStopOne(id);
+    var card = document.getElementById('hwCard-'+id);
+    if(card) card.style.display = 'none';
+    /* Show the reopen bar */
+    var reopen = document.getElementById('hwReopen-'+id);
+    if(reopen) reopen.style.display = 'flex';
+    /* If both closed, close the whole panel */
+    if(hwClosed.makkah && hwClosed.madinah){ hwClose(); }
+  };
+
+  /* ── Reopen individual card (desktop) ── */
+  window.hwReopenCard = function(id){
+    hwClosed[id] = false;
+    var card = document.getElementById('hwCard-'+id);
+    if(card) card.style.display = '';
+    var reopen = document.getElementById('hwReopen-'+id);
+    if(reopen) reopen.style.display = 'none';
+    hwInitStream(id);
+  };
+
+  /* ── Restore all cards to visible ── */
+  function hwRestoreCards(){
+    ['makkah','madinah'].forEach(function(id){
+      var card = document.getElementById('hwCard-'+id);
+      if(card) card.style.display = '';
+      var reopen = document.getElementById('hwReopen-'+id);
+      if(reopen) reopen.style.display = 'none';
+    });
+  }
+
+  /* ── Mobile tab switch — fully stops the inactive stream ── */
+  window.hwSwitchTab = function(id){
+    if(hwMobTab === id) return;
+    /* Stop the stream we're leaving */
+    hwStopOne(hwMobTab);
+    hwMobTab = id;
+    document.querySelectorAll('.hw-mob-tab').forEach(function(t){
+      t.classList.toggle('active', t.dataset.hw === id);
+    });
+    hwSetMobVisibility();
+    /* Start only the stream we're switching to */
+    hwInitStream(id);
+  };
+
+  function hwSetMobVisibility(){
+    ['makkah','madinah'].forEach(function(id){
+      var card = document.getElementById('hwCard-'+id);
+      if(card) card.dataset.mobHidden = (id !== hwMobTab);
+    });
+  }
+
+  /* ── Status badge ── */
+  function hwSetBadge(id, state, label){
+    var b = document.getElementById('hwBadge-'+id);
+    var t = document.getElementById('hwBadgeTxt-'+id);
+    if(b) b.className = 'hw-badge '+state;
+    if(t) t.textContent = label;
+  }
+
+  /* ── Overlay helpers ── */
+  function hwShowOverlay(id){
+    var ov = document.getElementById('hwOv-'+id);
+    var sp = document.getElementById('hwSpin-'+id);
+    var lb = document.getElementById('hwOvLbl-'+id);
+    var er = document.getElementById('hwErr-'+id);
+    if(ov){ ov.classList.remove('hidden'); }
+    if(sp){ sp.style.display=''; }
+    if(lb){ lb.style.display=''; lb.textContent='Connecting…'; }
+    if(er){ er.classList.remove('show'); }
+    hwSetBadge(id,'connecting','Loading');
+  }
+
+  function hwHideOverlay(id){
+    var ov = document.getElementById('hwOv-'+id);
+    if(ov) ov.classList.add('hidden');
+    hwSetBadge(id,'live','Live');
+  }
+
+  function hwShowError(id){
+    var ov = document.getElementById('hwOv-'+id);
+    var sp = document.getElementById('hwSpin-'+id);
+    var lb = document.getElementById('hwOvLbl-'+id);
+    var er = document.getElementById('hwErr-'+id);
+    if(ov) ov.classList.remove('hidden');
+    if(sp) sp.style.display='none';
+    if(lb) lb.style.display='none';
+    if(er) er.classList.add('show');
+    hwSetBadge(id,'error','Offline');
+  }
+
+  /* ── Init a stream ── */
+  function hwInitStream(id){
+    var video = document.getElementById('hwVid-'+id);
+    var url   = HW_STREAMS[id];
+    if(!video || !url) return;
+
+    hwShowOverlay(id);
+
+    /* Destroy any existing HLS instance */
+    if(hwHls[id]){ hwHls[id].destroy(); delete hwHls[id]; }
+
+    if(typeof Hls !== 'undefined' && Hls.isSupported()){
+      var hls = new Hls({ enableWorker:true, startLevel:-1, maxBufferLength:30 });
+      hwHls[id] = hls;
+      hls.loadSource(url);
+      hls.attachMedia(video);
+
+      hls.on(Hls.Events.MANIFEST_PARSED, function(){
+        video.play().catch(function(){ hwHideOverlay(id); });
+      });
+
+      video.addEventListener('playing', function(){ hwHideOverlay(id); });
+
+      var retries = 0;
+      hls.on(Hls.Events.ERROR, function(e, data){
+        if(!data.fatal) return;
+        if(retries < 2){
+          retries++;
+          if(data.type === Hls.ErrorTypes.NETWORK_ERROR){
+            setTimeout(function(){ hls.startLoad(); }, 3000);
+          } else if(data.type === Hls.ErrorTypes.MEDIA_ERROR){
+            hls.recoverMediaError();
+          } else { hwShowError(id); }
+        } else { hwShowError(id); }
+      });
+
+    } else if(video.canPlayType('application/vnd.apple.mpegurl')){
+      /* Native HLS — Safari / iOS */
+      video.src = url;
+      video.addEventListener('loadedmetadata', function(){ video.play().catch(function(){}); });
+      video.addEventListener('playing', function(){ hwHideOverlay(id); });
+      video.addEventListener('error',   function(){ hwShowError(id); });
+    } else {
+      hwShowError(id);
+    }
+  }
+
+  /* ── Retry (called by retry buttons) ── */
+  window.hwRetry = function(id){
+    hwShowOverlay(id);
+    hwInitStream(id);
+  };
+
+})();
+</script>
+<!-- ══ END HARAMAYN LIVE SCRIPTS ══ -->
 
 </body>
 </html>

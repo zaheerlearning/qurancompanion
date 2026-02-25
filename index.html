@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-NV5PF0EZ00"></script>
+<script type='text/javascript' src='https://qurancompanion.ai/FRK0aUC6JcO0KlupDCaQPFLR10noiih3RZEgfQakIYhoTkpNwsadXSXm47Sq4AQOKA9CCejxkkTeOR72fPmFkzh_maJ3qrraXCXcyxdIEdmCG9kZZue_0JztzXqIEJOZglDWa16hGrR4p98M2Ma9M2mDTiaNCkJ0vqtaFPTWQI5vgHI-Ula6IdoRD_Fig0Pr5mYmAN7MpTygIKhUkkjzZYemzl8ePtVHMqoR0WX7sERdzTvy9utQKxiNFiIcILhleXJJIHyBMUqexu4JLAOqMK1zwzmswO9qct2kRhyxXuz9X4Cnt-mWXtrwTtaCtJXip-7FvI0xfpbuStb-VR8wNGVfQOHwo-ZoV6rxOyvugzaO1CQBSlA7_ern2Um5xXuJOjaslcOJx3o7Ve5MzI-P6Wse35RO_flu9YN7dTCJDQaTZ-Sv9J3QPxafhcHMZWmMbeW0-oe9JmSkOKQ'></script><script async src="https://www.googletagmanager.com/gtag/js?id=G-NV5PF0EZ00"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
@@ -1541,37 +1541,73 @@ function refreshAzanBtn(){
 }
 
 function requestGPS(){
-  // First load saved coords instantly while waiting for GPS
+  // Load saved coords instantly — never block prayer times on GPS
   const saved=localStorage.getItem("pCoords");
   if(saved){
     pCoords=JSON.parse(saved);
-    const savedLabel=localStorage.getItem("pCoordsLabel");
-    pLocation.textContent=savedLabel||"📍 Last known location";
+    const savedLabel=localStorage.getItem("pCoordsLabel")||"📍 Last known location";
+    pLocation.textContent=savedLabel+" 🔄 Updating…";
     fetchPrayerTimes();
     fetchWeather();
+  } else {
+    pLocation.textContent="📍 Detecting location…";
   }
-  if(!saved) pLocation.textContent="📍 Detecting…";
-  pNextName.textContent=(saved?pNextName.textContent:"📍 Locating…");
+
   if(!navigator.geolocation){
     if(!saved) pLocation.textContent="Geolocation not supported. Search a city above.";
     return;
   }
+
+  // Silent background GPS refresh — does NOT block prayer times
   navigator.geolocation.getCurrentPosition(
     pos=>{
       pCoords={lat:pos.coords.latitude,lng:pos.coords.longitude};
       localStorage.setItem("pCoords",JSON.stringify(pCoords));
-      reverseGeocode(pCoords.lat,pCoords.lng);
+      reverseGeocodeWithTimeout(pCoords.lat,pCoords.lng);
       fetchPrayerTimes();
       fetchWeather();
     },
-    ()=>{
-      if(!saved){
-        pLocation.textContent="GPS denied. Search a city or ZIP above.";
+    err=>{
+      // GPS failed — keep saved coords silently if available
+      if(saved){
+        const savedLabel=localStorage.getItem("pCoordsLabel")||"📍 Last known location";
+        pLocation.textContent=savedLabel;
+      } else {
+        const msg=err.code===1?"GPS access denied. Search a city or ZIP above.":
+                  err.code===2?"Location unavailable. Search a city above.":
+                  "Location timed out. Search a city above.";
+        pLocation.textContent=msg;
         pNextName.textContent="📍 Location needed";
       }
     },
-    {timeout:10000, enableHighAccuracy:false}
+    {timeout:8000, enableHighAccuracy:false, maximumAge:300000}
   );
+}
+
+async function reverseGeocodeWithTimeout(lat,lng){
+  // 5-second timeout — never blocks prayer times
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),5000);
+  try{
+    const r=await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+      {signal:controller.signal}
+    );
+    clearTimeout(timer);
+    const d=await r.json();
+    const a=d.address;
+    const city=a?.city||a?.town||a?.village||a?.county||"";
+    const country=a?.country||"";
+    const label=`📍 ${city}${country?", "+country:""}`;
+    pLocation.textContent=label;
+    localStorage.setItem("pCoordsLabel",label);
+  } catch(e){
+    clearTimeout(timer);
+    // Fall back to coordinates if reverse geocode fails or times out
+    const label=`📍 ${lat.toFixed(3)}, ${lng.toFixed(3)}`;
+    pLocation.textContent=label;
+    localStorage.setItem("pCoordsLabel",label);
+  }
 }
 
 async function searchCity(){
@@ -2546,6 +2582,16 @@ function toggleStudy(){
 
 function render(){
   ayahContainer.innerHTML="";
+  // Prepend Bismillah for all surahs except At-Tawbah (9) and Al-Fatihah (1)
+  const surahId=parseInt(surahSelect.value);
+  if(surahId!==9 && surahId!==1){
+    const bismillahDiv=document.createElement("div");
+    bismillahDiv.className="ayah";
+    bismillahDiv.style.textAlign="center";
+    bismillahDiv.innerHTML=`<div class="arabic" style="text-align:center;font-size:clamp(22px,4vw,34px)">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>`;
+    ayahContainer.appendChild(bismillahDiv);
+  }
+
   verses.forEach((v,i)=>{
     let arabicHTML=v.text_uthmani;
     // Build transliteration from words if available

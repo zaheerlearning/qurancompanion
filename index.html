@@ -852,7 +852,7 @@ body.focus-night .ayah-num{
   color:#22c55e !important;
 }
 
-body.focus-mode .ayah > div:last-child{ display:none; }
+body.focus-mode .ayah:not(.bismillah-row) > div:last-child{ display:none; }
 
 /* Focus toolbar — fixed top */
 #focusToolbar{
@@ -897,6 +897,21 @@ body.focus-mode main{ padding-top:60px; }
   color:white; border-radius:6px; width:28px; height:28px;
   cursor:pointer; font-size:14px; font-weight:700;
   display:flex; align-items:center; justify-content:center;
+}
+.focus-surah-select{
+  flex:1; min-width:0;
+  background:rgba(255,255,255,.12);
+  border:1px solid rgba(255,255,255,.25);
+  color:white; border-radius:8px;
+  padding:5px 8px; font-size:13px; font-weight:700;
+  cursor:pointer; appearance:none; -webkit-appearance:none;
+  text-align:center; text-align-last:center;
+  max-width:220px;
+}
+.focus-surah-select:focus{ outline:1px solid rgba(255,255,255,.5); }
+.focus-surah-select option{ background:#166534; color:white; }
+@media(max-width:480px){
+  .focus-surah-select{ font-size:11px; padding:4px 5px; max-width:130px; }
 }
 
 /* Night mode in focus */
@@ -1219,7 +1234,7 @@ body.kids-active>*:not(#kidsMode){ display:none !important; }
 <!-- ══ FOCUS TOOLBAR ══ -->
 <div id="focusToolbar">
   <button class="focus-btn" onclick="exitFocus()">✕ Exit Focus</button>
-  <span class="focus-title" id="focusSurahName">Quran</span>
+  <select class="focus-surah-select" id="focusSurahSelect" onchange="focusChangeSurah(this.value)" title="Select Surah"></select>
   <div class="focus-font-ctrl">
     <button class="focus-font-btn" onclick="focusFont(-2)">A−</button>
     <button class="focus-font-btn" onclick="focusFont(+2)">A+</button>
@@ -2835,7 +2850,7 @@ function render(){
   const surahId=parseInt(surahSelect.value);
   if(surahId!==9 && surahId!==1){
     const bismillahDiv=document.createElement("div");
-    bismillahDiv.className="ayah";
+    bismillahDiv.className="ayah bismillah-row";
     bismillahDiv.style.textAlign="center";
     bismillahDiv.innerHTML=`<div class="arabic" style="text-align:center;font-size:clamp(22px,4vw,34px)">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>`;
     ayahContainer.appendChild(bismillahDiv);
@@ -3036,6 +3051,9 @@ function closeTafsir(){ tafsirPanel.classList.remove("open"); }
 surahSelect.addEventListener("change",e=>{
   localStorage.removeItem("lastAyah");
   loadSurah(e.target.value);
+  // Keep focus select in sync
+  const focusSel = document.getElementById("focusSurahSelect");
+  if(focusSel) focusSel.value = e.target.value;
 });
 
 loadSurahNames();
@@ -3044,7 +3062,16 @@ loadSurahNames();
    PWA — Service Worker Registration
 ═══════════════════════════════════════════ */
 if("serviceWorker" in navigator){
-  navigator.serviceWorker.register("sw.js").catch(e=>console.log("SW:",e));
+  const onLiveDomain = location.hostname === "qurancompanion.ai" || location.hostname.endsWith(".qurancompanion.ai");
+  if(onLiveDomain){
+    /* On the live site — register SW normally for PWA/offline support */
+    navigator.serviceWorker.register("sw.js").catch(e=>console.log("SW:",e));
+  } else {
+    /* Local file or preview — unregister any stale SW so it doesn't block API calls */
+    navigator.serviceWorker.getRegistrations().then(function(regs){
+      regs.forEach(function(r){ r.unregister(); });
+    });
+  }
 }
 
 /* ═══════════════════════════════════════════
@@ -3103,14 +3130,31 @@ function enterFocus(){
   document.body.classList.add("focus-mode");
   document.body.classList.remove("focus-night");
   focusNight=false;
-  // Update surah name in toolbar
-  const sel=document.getElementById("surahSelect");
-  const name=sel.options[sel.selectedIndex]?.text||"Quran";
-  document.getElementById("focusSurahName").textContent=name;
+  // Populate focus surah select from main select if not already done
+  const mainSel = document.getElementById("surahSelect");
+  const focusSel = document.getElementById("focusSurahSelect");
+  if(focusSel && focusSel.options.length === 0){
+    Array.from(mainSel.options).forEach(function(opt){
+      const o = document.createElement("option");
+      o.value = opt.value;
+      o.textContent = opt.textContent;
+      focusSel.appendChild(o);
+    });
+  }
+  // Sync to current surah
+  if(focusSel) focusSel.value = mainSel.value;
   // Arabic only by default — hide translations
   focusTransVisible=false;
   applyFocusTrans();
   document.getElementById("focusTransBtn").classList.remove("active");
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+function focusChangeSurah(id){
+  // Sync main select and reload
+  const mainSel = document.getElementById("surahSelect");
+  if(mainSel){ mainSel.value = id; }
+  loadSurah(id);
   window.scrollTo({top:0,behavior:"smooth"});
 }
 

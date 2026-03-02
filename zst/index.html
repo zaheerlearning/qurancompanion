@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Zakat & Sadaqa Calculator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Georgia','Times New Roman',serif;background:#f2f7f4;}
+  input[type=range]{width:100%;cursor:pointer;}
+  input,select,button{font-family:inherit;}
+  @keyframes slideUp{from{opacity:0;transform:translateX(-50%) translateY(20px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
+  table{border-collapse:collapse;}
+  @media(max-width:700px){
+    .grid-2{grid-template-columns:1fr!important;}
+    .grid-3{grid-template-columns:1fr!important;}
+    .grid-4{grid-template-columns:1fr 1fr!important;}
+    .sticky-card{position:static!important;}
+    .main-grid{grid-template-columns:1fr!important;}
+    .header-actions{flex-wrap:wrap;gap:6px!important;}
+    h1{font-size:1.1rem!important;}
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useCallback,useRef} = React;
+
+// ── Constants ──────────────────────────────────────────────────────
+const GRAMS_PER_OZ   = 31.1035;
+const GRAMS_PER_TOLA = 11.6638;
+const NISAB          = {silver:612.36,gold:87.48};
+const ZAKAT_RATE     = 0.025;
+const DEFAULT_PRICES = {goldPerGram:172.72,silverPerGram:2.88,usdToInr:84.5};
+
+// Top Zakat-giving country currencies (vs USD)
+const ZAKAT_CURRENCIES = [
+  {code:"USD",symbol:"$",name:"US Dollar",flag:"🇺🇸",rate:1},
+  {code:"SAR",symbol:"﷼",name:"Saudi Riyal",flag:"🇸🇦",rate:3.75},
+  {code:"AED",symbol:"د.إ",name:"UAE Dirham",flag:"🇦🇪",rate:3.67},
+  {code:"GBP",symbol:"£",name:"British Pound",flag:"🇬🇧",rate:0.79},
+  {code:"EUR",symbol:"€",name:"Euro",flag:"🇪🇺",rate:0.92},
+  {code:"PKR",symbol:"₨",name:"Pakistani Rupee",flag:"🇵🇰",rate:278},
+  {code:"INR",symbol:"₹",name:"Indian Rupee",flag:"🇮🇳",rate:84.5},
+  {code:"BDT",symbol:"৳",name:"Bangladeshi Taka",flag:"🇧🇩",rate:110},
+  {code:"MYR",symbol:"RM",name:"Malaysian Ringgit",flag:"🇲🇾",rate:4.47},
+  {code:"IDR",symbol:"Rp",name:"Indonesian Rupiah",flag:"🇮🇩",rate:15800},
+  {code:"TRY",symbol:"₺",name:"Turkish Lira",flag:"🇹🇷",rate:32.5},
+  {code:"EGP",symbol:"£",name:"Egyptian Pound",flag:"🇪🇬",rate:48.5},
+  {code:"CAD",symbol:"CA$",name:"Canadian Dollar",flag:"🇨🇦",rate:1.36},
+  {code:"AUD",symbol:"A$",name:"Australian Dollar",flag:"🇦🇺",rate:1.55},
+  {code:"KWD",symbol:"د.ك",name:"Kuwaiti Dinar",flag:"🇰🇼",rate:0.307},
+  {code:"QAR",symbol:"ر.ق",name:"Qatari Riyal",flag:"🇶🇦",rate:3.64},
+];
+
+const HADITHS = [
+  {text:"The example of those who spend their wealth in the way of Allah is like a seed that grows seven ears, each ear having a hundred grains.",source:"Quran 2:261",type:"quran"},
+  {text:"Protect yourself from hellfire even by giving a piece of date as charity.",source:"Bukhari & Muslim",type:"hadith"},
+  {text:"Charity does not decrease wealth, no one forgives another except that Allah increases his honor, and no one humbles himself for the sake of Allah except that Allah raises his status.",source:"Muslim",type:"hadith"},
+  {text:"The believer's shade on the Day of Resurrection will be his charity.",source:"Tirmidhi",type:"hadith"},
+  {text:"Give the worker his wage before his sweat dries.",source:"Ibn Majah",type:"hadith"},
+  {text:"Every Muslim has to give in charity. If he cannot find anything, let him work with his hands to his own benefit and give charity.",source:"Bukhari",type:"hadith"},
+  {text:"There is not a day on which the servants wake up except that two angels come down. One says: O Allah, give recompense to one who spends; the other says: O Allah, give loss to one who withholds.",source:"Bukhari",type:"hadith"},
+  {text:"The upper hand is better than the lower hand. The upper hand is the one that gives, and the lower hand is the one that takes.",source:"Bukhari",type:"hadith"},
+];
+
+const SADAQA_CATEGORIES = ["Food / Meals","Education","Medical","Masjid","Family","Orphan","Traveler","General Charity","Sadaqah Jariyah","Other"];
+
+const STEPS = [
+  {id:"intro",  icon:"🌙",title:"Welcome",         subtitle:"Let's calculate your Zakat together"},
+  {id:"prices", icon:"📈",title:"Live Prices",      subtitle:"Review current gold, silver & exchange rates"},
+  {id:"cash",   icon:"💵",title:"Cash & Banking",   subtitle:"Enter your cash and bank balances"},
+  {id:"metals", icon:"⚖️",title:"Gold & Silver",    subtitle:"Enter the weight of your precious metals"},
+  {id:"assets", icon:"📦",title:"Other Assets",     subtitle:"Business goods, investments & receivables"},
+  {id:"liabilities",icon:"📋",title:"Liabilities",  subtitle:"Deduct your debts & upcoming expenses"},
+  {id:"retirement",icon:"🏦",title:"401k / Pension",subtitle:"Calculate Zakat on retirement accounts"},
+  {id:"nisab",  icon:"🎯",title:"Nisab Check",      subtitle:"See if Zakat is obligatory for you"},
+  {id:"result", icon:"✅",title:"Your Zakat",       subtitle:"Final calculation & payment plan"},
+];
+
+const METHODS_401K = {
+  full:{id:"full",icon:"⬆️",label:"Full Balance",sublabel:"Strict",scholar:"Mufti Taqi Usmani · SeekersGuidance",color:"#1a5c4a",colorBg:"#e8f5f0",colorBorder:"#a8d8c4",description:"Pay Zakat on the total account balance each year. The wealth is yours — merely restricted, not absent.",pros:["Greatest reward","Clears obligation cleanly each year","Recommended by SeekersGuidance"],cons:["Highest annual amount","Must pay from liquid funds"],formula:(b,p,t,y)=>b*0.025,formulaLabel:"Full Balance × 2.5%",recommended:true},
+  net:{id:"net",icon:"⚖️",label:"Net After Penalties",sublabel:"Moderate",scholar:"Dr. Yusuf Al-Qaradawi · IFA",color:"#7c5a00",colorBg:"#fdf5e0",colorBorder:"#e8c870",description:"Deduct the 10% IRS penalty and income tax, then pay 2.5% on what you'd actually receive.",pros:["Accounts for real accessibility","Supported by major scholars","Better for limited liquid assets"],cons:["Still annual","Tax estimate may vary"],formula:(b,p,t,y)=>{const pen=b*(p/100);const tax=(b-pen)*(t/100);return(b-pen-tax)*0.025;},formulaLabel:"(Balance − Penalty − Tax) × 2.5%",recommended:false},
+  defer:{id:"defer",icon:"🕐",label:"Defer to Withdrawal",sublabel:"Lenient",scholar:"Shaykh Ibn Baz (ra) · Hanbali",color:"#7a2020",colorBg:"#fdf0f0",colorBorder:"#e8b0b0",description:"Pay no Zakat until retirement. Then pay 2.5% for every year balance exceeded nisab. Can be a large sum.",pros:["No current outlay","Permitted in hardship"],cons:["Large lump-sum at retirement","Risk of forgetting","Scholars warn against as default"],formula:(b,p,t,y)=>b*0.025*y,formulaLabel:"Balance × 2.5% × Years",recommended:false},
+};
+
+const TAX_BRACKETS = [
+  {label:"10% — Under $11,600",value:10},
+  {label:"12% — $11,601–$47,150",value:12},
+  {label:"22% — $47,151–$100,525",value:22},
+  {label:"24% — $100,526–$191,950",value:24},
+  {label:"32% — $191,951–$243,725",value:32},
+  {label:"35% — $243,726–$609,350",value:35},
+  {label:"37% — Above $609,350",value:37},
+];
+
+// ── Helpers ────────────────────────────────────────────────────────
+function toGrams(v,u){const n=parseFloat(v)||0;if(u==="oz")return n*GRAMS_PER_OZ;if(u==="tola")return n*GRAMS_PER_TOLA;return n;}
+function fmt(v,d=2){return(parseFloat(v)||0).toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d});}
+function fmtINR(v){return(parseFloat(v)||0).toLocaleString("en-IN",{maximumFractionDigits:0});}
+
+const C={teal:"#1a5c4a",tealMid:"#1e7a62",tealLight:"#27a47f",gold:"#b8830a",goldLight:"#e0a820",goldBg:"#fdf3dc",green:"#27ae60",red:"#c0392b",bg:"#f2f7f4"};
+
+// ── Sub-components ─────────────────────────────────────────────────
+function Toast({toast}){
+  if(!toast) return null;
+  const isSuccess=toast.type==="success";
+  const isError=toast.type==="error";
+  return(
+    <div style={{
+      position:"fixed",bottom:80,left:"50%",transform:"translateX(-50%)",
+      background:isSuccess?"#1a5c4a":isError?"#c0392b":"#7c5a00",
+      color:"#fff",borderRadius:14,padding:"13px 24px",
+      boxShadow:"0 8px 32px rgba(0,0,0,0.25)",
+      display:"flex",alignItems:"center",gap:10,
+      fontSize:"0.88rem",fontWeight:600,fontFamily:"sans-serif",
+      zIndex:9999,maxWidth:"90vw",animation:"slideUp 0.3s ease",
+    }}>
+      <span style={{fontSize:18}}>{isSuccess?"✅":isError?"❌":"ℹ️"}</span>
+      <span>{toast.msg}</span>
+    </div>
+  );
+}
+
+function HadithCard({hadith,compact}){
+  return(
+    <div style={{background:`linear-gradient(135deg,#0a3d2e,${C.teal})`,borderRadius:compact?12:16,padding:compact?"14px 18px":"20px 24px",color:"#fff",position:"relative",overflow:"hidden",marginBottom:compact?0:20}}>
+      <div style={{position:"absolute",top:-10,right:-10,fontSize:60,opacity:0.06,fontFamily:"serif"}}>"</div>
+      <div style={{fontSize:"0.7rem",color:C.goldLight,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:8}}>{hadith.type==="quran"?"📖 Quran":"🌿 Hadith"}</div>
+      <div style={{fontSize:compact?"0.82rem":"0.92rem",lineHeight:1.65,color:"rgba(255,255,255,0.92)",fontStyle:"italic",marginBottom:8}}>"{hadith.text}"</div>
+      <div style={{fontSize:"0.72rem",color:C.goldLight,fontWeight:600}}>— {hadith.source}</div>
+    </div>
+  );
+}
+
+function Tip({text}){
+  const [show,setShow]=useState(false);
+  return(
+    <span style={{position:"relative",display:"inline-flex"}} onMouseEnter={()=>setShow(true)} onMouseLeave={()=>setShow(false)}>
+      <span style={{width:16,height:16,background:"#dff0ea",color:C.teal,borderRadius:"50%",fontSize:10,display:"inline-flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontWeight:700}}>?</span>
+      {show&&<span style={{position:"absolute",bottom:"calc(100% + 8px)",left:"50%",transform:"translateX(-50%)",background:"#1a2e2a",color:"#fff",fontSize:"0.72rem",padding:"10px 14px",borderRadius:10,width:220,lineHeight:1.5,zIndex:999,fontWeight:400,pointerEvents:"none",boxShadow:"0 8px 24px rgba(0,0,0,0.2)"}}>{text}</span>}
+    </span>
+  );
+}
+
+function InputDollar({value,onChange,placeholder="0.00"}){
+  return(
+    <div style={{display:"flex",border:"1.5px solid #cce0d9",borderRadius:10,overflow:"hidden",background:"#fff"}}>
+      <span style={{padding:"0 12px",background:"#e8f5f0",color:C.teal,fontWeight:700,fontSize:"0.9rem",display:"flex",alignItems:"center",borderRight:"1.5px solid #cce0d9"}}>$</span>
+      <input type="number" value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} min="0" step="0.01"
+        style={{flex:1,border:"none",outline:"none",padding:"11px 14px",fontSize:"1rem",background:"transparent",minWidth:0}}/>
+    </div>
+  );
+}
+
+function InputINR({value,onChange,placeholder="0"}){
+  return(
+    <div style={{display:"flex",border:"1.5px solid #f0dfc0",borderRadius:10,overflow:"hidden",background:"#fff"}}>
+      <span style={{padding:"0 12px",background:"#fdf5e4",color:C.gold,fontWeight:700,fontSize:"0.9rem",display:"flex",alignItems:"center",borderRight:"1.5px solid #f0dfc0"}}>₹</span>
+      <input type="number" value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} min="0" step="1"
+        style={{flex:1,border:"none",outline:"none",padding:"11px 14px",fontSize:"1rem",background:"transparent",minWidth:0}}/>
+    </div>
+  );
+}
+
+function MetalInput({value,unit,onValue,onUnit}){
+  return(
+    <div style={{display:"flex",border:"1.5px solid #cce0d9",borderRadius:10,overflow:"hidden",background:"#fff"}}>
+      <input type="number" value={value} onChange={e=>onValue(e.target.value)} placeholder="0" min="0" step="0.01"
+        style={{flex:1,border:"none",outline:"none",padding:"11px 14px",fontSize:"1rem",background:"transparent",minWidth:0}}/>
+      <select value={unit} onChange={e=>onUnit(e.target.value)}
+        style={{border:"none",outline:"none",padding:"0 12px",background:"#e8f5f0",color:C.teal,fontWeight:700,borderLeft:"1.5px solid #cce0d9",cursor:"pointer",fontSize:"0.82rem"}}>
+        <option value="g">Grams</option>
+        <option value="oz">Troy Oz</option>
+        <option value="tola">Tola</option>
+      </select>
+    </div>
+  );
+}
+
+function Field({label,tip,children,dual,dualLabel}){
+  return(
+    <div style={{display:"flex",flexDirection:"column",gap:6}}>
+      <label style={{fontSize:"0.75rem",fontWeight:700,color:"#5a7a70",textTransform:"uppercase",letterSpacing:"0.07em",display:"flex",alignItems:"center",gap:6,fontFamily:"sans-serif"}}>
+        {label} {tip&&<Tip text={tip}/>}
+      </label>
+      {children}
+      {dual&&<div style={{fontSize:"0.75rem",color:C.gold,marginTop:2,fontFamily:"sans-serif"}}>{dual}</div>}
+    </div>
+  );
+}
+
+function Card({title,icon,children}){
+  return(
+    <div style={{background:"#fff",border:"1px solid rgba(26,92,74,0.12)",borderRadius:16,padding:22,marginBottom:18,boxShadow:"0 4px 20px rgba(26,92,74,0.07)"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16,paddingBottom:12,borderBottom:"2px solid rgba(26,92,74,0.1)"}}>
+        <div style={{width:30,height:30,background:`linear-gradient(135deg,${C.teal},#2ea68a)`,color:"#fff",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>{icon}</div>
+        <span style={{fontWeight:700,fontSize:"1.05rem",color:C.teal}}>{title}</span>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function GuidanceBox({icon,title,children,color="#e8f5f0",border="#a8d8c8"}){
+  return(
+    <div style={{background:color,border:`1px solid ${border}`,borderRadius:12,padding:"14px 18px",marginBottom:16}}>
+      <div style={{fontWeight:700,color:C.teal,marginBottom:6,display:"flex",alignItems:"center",gap:8,fontFamily:"sans-serif"}}><span>{icon}</span>{title}</div>
+      <div style={{fontSize:"0.85rem",color:"#3a5a50",lineHeight:1.65,fontFamily:"sans-serif"}}>{children}</div>
+    </div>
+  );
+}
+
+function PBar({value,max,label,color=C.teal}){
+  const pct=max>0?Math.min(100,(value/max)*100):0;
+  return(
+    <div>
+      {label&&<div style={{display:"flex",justifyContent:"space-between",fontSize:"0.78rem",color:"#6b8a80",marginBottom:5,fontFamily:"sans-serif"}}>
+        <span>{label}</span><span style={{fontWeight:700,color}}>{Math.round(pct)}%</span>
+      </div>}
+      <div style={{background:"#e0ede8",borderRadius:100,height:10,overflow:"hidden"}}>
+        <div style={{height:"100%",borderRadius:100,background:`linear-gradient(90deg,${color},${color}cc)`,width:`${pct}%`,transition:"width 0.6s ease"}}/>
+      </div>
+    </div>
+  );
+}
+
+// ── MAIN APP ───────────────────────────────────────────────────────
+function App(){
+  const [mainTab,setMainTab]=useState("wizard");
+  const [step,setStep]=useState(0);
+  const [hadithIdx,setHadithIdx]=useState(0);
+
+  // Prices
+  const [prices,setPrices]=useState(DEFAULT_PRICES);
+  const [priceLoading,setPriceLoading]=useState(false);
+  const [priceUpdated,setPriceUpdated]=useState(null);
+
+  // Assets
+  const [cash,setCash]=useState("");
+  const [goldW,setGoldW]=useState(""); const [goldU,setGoldU]=useState("g");
+  const [silverW,setSilverW]=useState(""); const [silverU,setSilverU]=useState("g");
+  const [trade,setTrade]=useState("");
+  const [recv,setRecv]=useState("");
+  const [stocks,setStocks]=useState("");
+  const [pension,setPension]=useState("");
+  const [rental,setRental]=useState("");
+  const [other,setOther]=useState("");
+
+  // 401k
+  const [ret401k,setRet401k]=useState("");
+  const [retAge,setRetAge]=useState("");
+  const [retYears,setRetYears]=useState("1");
+  const [retTax,setRetTax]=useState(22);
+  const [retPenalty,setRetPenalty]=useState(10);
+  const [retMethod,setRetMethod]=useState("full");
+
+  // Liabilities
+  const [debts,setDebts]=useState("");
+  const [expenses,setExpenses]=useState("");
+
+  // Settings
+  const [nisabBasis,setNisabBasis]=useState("silver");
+  const [spreadMonths,setSpreadMonths]=useState(1);
+  const [currency,setCurrency]=useState("USD");
+
+  // Zakat Payments
+  const [zakatPayments,setZakatPayments]=useState([]);
+  const [zPayDate,setZPayDate]=useState(new Date().toISOString().split("T")[0]);
+  const [zPayUSD,setZPayUSD]=useState(""); const [zPayINR,setZPayINR]=useState("");
+  const [zPayRecipient,setZPayRecipient]=useState(""); const [zPayNote,setZPayNote]=useState("");
+
+  // Sadaqa
+  const [sadaqaEntries,setSadaqaEntries]=useState([]);
+  const [sDate,setSDate]=useState(new Date().toISOString().split("T")[0]);
+  const [sAmtUSD,setSAmtUSD]=useState(""); const [sAmtINR,setSAmtINR]=useState("");
+  const [sCategory,setSCategory]=useState("General Charity");
+  const [sRecipient,setSRecipient]=useState(""); const [sNote,setSNote]=useState(""); const [sIntention,setSIntention]=useState("");
+
+  // Recipients
+  const [recipients,setRecipients]=useState([]);
+  const [rName,setRName]=useState(""); const [rRelation,setRRelation]=useState(""); const [rLocation,setRLocation]=useState("");
+
+  // Toast
+  const [toast,setToast]=useState(null);
+  const toastRef=useRef(null);
+  function showToast(msg,type="success"){
+    clearTimeout(toastRef.current);
+    setToast({msg,type});
+    toastRef.current=setTimeout(()=>setToast(null),4500);
+  }
+
+  // Manual price overrides
+  const [overrideMode,setOverrideMode]=useState(false);
+  const [manualGold,setManualGold]=useState("");
+  const [manualSilver,setManualSilver]=useState("");
+  const [manualRates,setManualRates]=useState({});
+
+  useEffect(()=>{const t=setInterval(()=>setHadithIdx(i=>(i+1)%HADITHS.length),8000);return()=>clearInterval(t);},[]);
+
+  const fetchPrices=useCallback(async()=>{
+    setPriceLoading(true);
+    let fetchedOk=false;
+    try{
+      // 1. Fetch forex rates (fawazahmed0 API - free, no key, live)
+      const CODES=["sar","aed","gbp","eur","pkr","inr","bdt","myr","idr","try","egp","cad","aud","kwd","qar","xau","xag"];
+      const fxUrl=`https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json`;
+      const fxRes=await fetch(fxUrl);
+      if(fxRes.ok){
+        const fxData=await fxRes.json();
+        const r=fxData.usd;
+        if(r){
+          const newPrices={};
+          // Map currency codes to our format
+          const codeMap={sar:"SAR",aed:"AED",gbp:"GBP",eur:"EUR",pkr:"PKR",inr:"INR",bdt:"BDT",myr:"MYR",idr:"IDR",try:"TRY",egp:"EGP",cad:"CAD",aud:"AUD",kwd:"KWD",qar:"QAR"};
+          Object.entries(codeMap).forEach(([apiKey,ourKey])=>{ if(r[apiKey]) newPrices[ourKey]=r[apiKey]; });
+          // XAU = troy oz of gold in USD, XAG = troy oz of silver
+          if(r.xau) newPrices.goldPerGram=1/(r.xau*31.1035); // xau is USD per 1 USD in gold oz → invert
+          if(r.xag) newPrices.silverPerGram=1/(r.xag*31.1035);
+          // Simpler: fawazahmed gives "how many XAU per 1 USD" so gold per gram = 1/(usd_to_xau * 31.1035)
+          if(r.xau) newPrices.goldPerGram=parseFloat((1/r.xau/31.1035).toFixed(4));
+          if(r.xag) newPrices.silverPerGram=parseFloat((1/r.xag/31.1035).toFixed(4));
+          newPrices.usdToInr=newPrices.INR||84.5;
+          setPrices(prev=>({...prev,...newPrices}));
+          setPriceUpdated(new Date().toLocaleTimeString());
+          fetchedOk=true;
+        }
+      }
+    }catch(e1){
+      // Fallback: exchangerate-api.com free endpoint
+      try{
+        const res2=await fetch("https://open.er-api.com/v6/latest/USD");
+        if(res2.ok){
+          const d2=await res2.json();
+          if(d2.rates){
+            const r=d2.rates;
+            const mapped={SAR:r.SAR,AED:r.AED,GBP:r.GBP,EUR:r.EUR,PKR:r.PKR,INR:r.INR,BDT:r.BDT,MYR:r.MYR,IDR:r.IDR,TRY:r.TRY,EGP:r.EGP,CAD:r.CAD,AUD:r.AUD,KWD:r.KWD,QAR:r.QAR,usdToInr:r.INR||84.5};
+            setPrices(prev=>({...prev,...mapped}));
+            setPriceUpdated(new Date().toLocaleTimeString()+" (forex only)");
+            fetchedOk=true;
+          }
+        }
+      }catch(e2){}
+    }
+    setPriceLoading(false);
+    if(fetchedOk) showToast("✓ Live rates updated successfully","success");
+    else showToast("⚠ Could not fetch live rates — using last known values","error");
+  },[]);
+
+  useEffect(()=>{fetchPrices();},[]);
+
+  // Calculations
+  const cashVal=parseFloat(cash)||0;
+  const goldVal=toGrams(goldW,goldU)*prices.goldPerGram;
+  const silverVal=toGrams(silverW,silverU)*prices.silverPerGram;
+  const ret401kVal=parseFloat(ret401k)||0;
+  const ret401kZakat=(()=>{
+    const m=METHODS_401K[retMethod];
+    return m.formula(ret401kVal,retPenalty,retTax,parseFloat(retYears)||1);
+  })();
+
+  const extraAssets=(parseFloat(trade)||0)+(parseFloat(recv)||0)+(parseFloat(stocks)||0)+(parseFloat(pension)||0)+(parseFloat(rental)||0)+(parseFloat(other)||0);
+  const totalAssets=cashVal+goldVal+silverVal+extraAssets+ret401kVal;
+  const totalLiab=(parseFloat(debts)||0)+(parseFloat(expenses)||0);
+  const net=Math.max(0,totalAssets-totalLiab);
+  const nisabVal=nisabBasis==="gold"?NISAB.gold*prices.goldPerGram:NISAB.silver*prices.silverPerGram;
+
+  // For zakat calculation, use the 401k-specific zakat amount instead of full 401k value
+  const zakatabWealth=cashVal+goldVal+silverVal+extraAssets+ret401kZakat/ZAKAT_RATE-totalLiab;
+  const zakatDue=net>=nisabVal?(cashVal+goldVal+silverVal+extraAssets-totalLiab)*ZAKAT_RATE+ret401kZakat:0;
+  const zakatInCurr=zakatDue; // always USD base, display via inCurr()
+  const perMonth=zakatDue/(spreadMonths||1);
+  const met=net>=nisabVal&&net>0;
+  const pct=nisabVal>0?Math.min(100,(net/nisabVal)*100):0;
+
+  const zTotalPaidUSD=zakatPayments.reduce((s,p)=>s+(parseFloat(p.usd)||0),0);
+  const zTotalPaidINR=zakatPayments.reduce((s,p)=>s+(parseFloat(p.inr)||0),0);
+  const zTotalPaidEq=zTotalPaidUSD+zTotalPaidINR/prices.usdToInr;
+  const zRemaining=Math.max(0,zakatDue-zTotalPaidEq);
+  const zPaidPct=zakatDue>0?Math.min(100,(zTotalPaidEq/zakatDue)*100):0;
+
+  const sTotalUSD=sadaqaEntries.reduce((s,e)=>s+(parseFloat(e.usd)||0),0);
+  const sTotalINR=sadaqaEntries.reduce((s,e)=>s+(parseFloat(e.inr)||0),0);
+  const sTotalEq=sTotalUSD+sTotalINR/prices.usdToInr;
+
+  const currObj=ZAKAT_CURRENCIES.find(c=>c.code===currency)||ZAKAT_CURRENCIES[0];
+  const currRate=prices[currency]||currObj.rate;
+  function inCurr(usd){
+    const val=usd*currRate;
+    if(val>=1000000)return currObj.symbol+fmt(val/1000000,2)+"M";
+    if(val>=1000)return currObj.symbol+fmt(val,0);
+    return currObj.symbol+fmt(val,2);
+  }
+  function dual(usd){return inCurr(usd)+(currency!=="USD"?" ("+currObj.symbol+")":"");}
+
+  // Export CSV
+  function exportCSV(){
+    const rows=[["ZAKAT & SADAQA RECORD"],["Generated",new Date().toLocaleDateString()],[""],
+      ["=== ZAKAT SUMMARY ==="],["Total Assets (USD)","$"+fmt(totalAssets)],["Liabilities","$"+fmt(totalLiab)],["Net Wealth","$"+fmt(net)],["Zakat Due (USD)","$"+fmt(zakatDue)],["Zakat Due ("+currObj.code+")",inCurr(zakatDue)],[""],
+      ["=== ZAKAT PAYMENTS ==="],["Date","USD","INR","Recipient","Note"],...zakatPayments.map(p=>[p.date,p.usd||0,p.inr||0,p.recipient,p.note]),[""],
+      ["=== SADAQA RECORD ==="],["Date","USD","INR","Category","Recipient","Intention","Note"],...sadaqaEntries.map(e=>[e.date,e.usd||0,e.inr||0,e.category,e.recipient,e.intention,e.note]),[""],
+      ["Total Sadaqa (USD equiv)","$"+fmt(sTotalEq)],
+    ];
+    const csv=rows.map(r=>r.map(c=>`"${c}"`).join(",")).join("\n");
+    const a=document.createElement("a");
+    a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);
+    a.download="zakat_sadaqa_record.csv"; a.click();
+    showToast("✓ CSV exported successfully","success");
+  }
+
+  // Export PDF
+  function exportPDF(){
+    const w=window.open("","_blank");
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Zakat & Sadaqa Record</title>
+    <style>body{font-family:Georgia,serif;max-width:740px;margin:40px auto;color:#1c2c28;padding:0 24px;}h1{color:#1a5c4a;border-bottom:3px solid #b8830a;padding-bottom:12px;}h2{color:#1a5c4a;font-size:1rem;margin:24px 0 8px;border-left:4px solid #b8830a;padding-left:12px;}table{width:100%;border-collapse:collapse;font-size:0.84rem;margin-bottom:16px;}th{background:#1a5c4a;color:#fff;padding:8px 12px;text-align:left;}td{padding:7px 12px;border-bottom:1px solid #eee;}.total{background:#f0faf7;font-weight:700;}.hadith{background:linear-gradient(135deg,#0a3d2e,#1a5c4a);color:#fff;padding:16px;border-radius:12px;margin:20px 0;font-style:italic;font-size:0.9rem;line-height:1.6;}.hadith .src{color:#e0a820;font-size:0.75rem;margin-top:6px;font-style:normal;font-weight:700;}.badge{display:inline-block;background:${met?"#d4edda":"#fff3cd"};color:${met?"#155724":"#856404"};padding:5px 14px;border-radius:20px;font-size:0.82rem;font-weight:700;}.footer{margin-top:40px;font-size:0.72rem;color:#aaa;border-top:1px solid #eee;padding-top:12px;text-align:center;}</style></head><body>
+    <h1>🌙 Zakat & Sadaqa Record</h1>
+    <p style="color:#888;font-size:0.85rem;margin-bottom:20px;">Generated: ${new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})} · Gold $${fmt(prices.goldPerGram)}/g · Silver $${fmt(prices.silverPerGram)}/g · ₹${fmt(prices.usdToInr,0)}/USD</p>
+    <div class="hadith">"${HADITHS[0].text}"<div class="src">— ${HADITHS[0].source}</div></div>
+    <span class="badge">${met?"✓ Nisab Reached — Zakat Obligatory":"Below Nisab — Not Obligatory"}</span>
+    <h2>Asset Breakdown</h2>
+    <table><tr><th>Category</th><th>USD</th><th>INR</th></tr>
+    <tr><td>Cash & Bank</td><td>$${fmt(cashVal)}</td><td>₹${fmtINR(cashVal*prices.usdToInr)}</td></tr>
+    <tr><td>Gold</td><td>$${fmt(goldVal)}</td><td>₹${fmtINR(goldVal*prices.usdToInr)}</td></tr>
+    <tr><td>Silver</td><td>$${fmt(silverVal)}</td><td>₹${fmtINR(silverVal*prices.usdToInr)}</td></tr>
+    <tr><td>401k / Retirement</td><td>$${fmt(ret401kVal)}</td><td>₹${fmtINR(ret401kVal*prices.usdToInr)}</td></tr>
+    <tr><td>Other Assets</td><td>$${fmt(extraAssets)}</td><td>₹${fmtINR(extraAssets*prices.usdToInr)}</td></tr>
+    <tr class="total"><td>Total Assets</td><td>$${fmt(totalAssets)}</td><td>₹${fmtINR(totalAssets*prices.usdToInr)}</td></tr>
+    <tr><td>Liabilities</td><td>−$${fmt(totalLiab)}</td><td>−₹${fmtINR(totalLiab*prices.usdToInr)}</td></tr>
+    <tr class="total" style="background:#fff3cd"><td><b>ZAKAT DUE (2.5%)</b></td><td><b>$${fmt(zakatDue)}</b></td><td><b>₹${fmtINR(zakatINR)}</b></td></tr></table>
+    <p style="font-size:0.8rem;color:#888;">401k method used: ${METHODS_401K[retMethod].label} (${METHODS_401K[retMethod].scholar})</p>
+    ${zakatPayments.length>0?`<h2>Zakat Payments</h2><table><tr><th>Date</th><th>USD</th><th>INR</th><th>Recipient</th><th>Note</th></tr>${zakatPayments.map(p=>`<tr><td>${p.date}</td><td>${p.usd?"$"+fmt(p.usd):"—"}</td><td>${p.inr?"₹"+fmtINR(p.inr):"—"}</td><td>${p.recipient||"—"}</td><td>${p.note||"—"}</td></tr>`).join("")}<tr class="total"><td>Total</td><td>$${fmt(zTotalPaidUSD)}</td><td>₹${fmtINR(zTotalPaidINR)}</td><td colspan="2">Remaining: $${fmt(zRemaining)}</td></tr></table>`:""}
+    ${sadaqaEntries.length>0?`<h2>Sadaqa Record</h2><table><tr><th>Date</th><th>USD</th><th>INR</th><th>Category</th><th>Recipient</th><th>Intention</th></tr>${sadaqaEntries.map(e=>`<tr><td>${e.date}</td><td>${e.usd?"$"+fmt(e.usd):"—"}</td><td>${e.inr?"₹"+fmtINR(e.inr):"—"}</td><td>${e.category}</td><td>${e.recipient||"—"}</td><td>${e.intention||"—"}</td></tr>`).join("")}<tr class="total"><td>Total</td><td>$${fmt(sTotalUSD)}</td><td>₹${fmtINR(sTotalINR)}</td><td colspan="3">≈ $${fmt(sTotalEq)}</td></tr></table>`:""}
+    <div class="footer">Generated by Zakat Calculator · For personal fatwa: seekersguidance.org</div></body></html>`);
+    w.document.close(); setTimeout(()=>w.print(),600);
+    showToast("✓ PDF opened for printing/saving","success");
+  }
+
+  function importCSV(e){
+    const file=e.target.files[0]; if(!file)return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      try{
+        const raw=ev.target.result;
+        // Parse CSV respecting quoted fields
+        function parseCSVLine(line){
+          const result=[]; let cur=""; let inQ=false;
+          for(let i=0;i<line.length;i++){
+            if(line[i]==='"'){inQ=!inQ;}
+            else if(line[i]===","&&!inQ){result.push(cur.trim());cur="";}
+            else{cur+=line[i];}
+          }
+          result.push(cur.trim()); return result;
+        }
+        const lines=raw.split(/\r?\n/).map(parseCSVLine);
+        let zCount=0, sCount=0;
+
+        // Find Zakat Payments section: header row has Date,USD,INR,Recipient,Note
+        const zHeaderIdx=lines.findIndex(l=>l[0]==="Date"&&l[1]==="USD"&&(l[3]==="Recipient"||l[4]==="Note"));
+        if(zHeaderIdx>=0){
+          const imp=[];
+          for(let i=zHeaderIdx+1;i<lines.length;i++){
+            const l=lines[i];
+            if(!l[0]||l[0].startsWith("===")||l[0]==="Date") break;
+            if(l[0].match(/^\d{4}-\d{2}-\d{2}$/)){
+              imp.push({id:Date.now()+i,date:l[0],usd:parseFloat(l[1])||0,inr:parseFloat(l[2])||0,recipient:l[3]||"",note:l[4]||""});
+            }
+          }
+          if(imp.length){setZakatPayments(imp);zCount=imp.length;}
+        }
+
+        // Find Sadaqa section: header row has Date,USD,INR,Category,Recipient,Intention,Note
+        const sHeaderIdx=lines.findIndex(l=>l[0]==="Date"&&l[1]==="USD"&&l[3]==="Category");
+        if(sHeaderIdx>=0){
+          const imp=[];
+          for(let i=sHeaderIdx+1;i<lines.length;i++){
+            const l=lines[i];
+            if(!l[0]||l[0].startsWith("===")||l[0]==="Date") break;
+            if(l[0].match(/^\d{4}-\d{2}-\d{2}$/)){
+              imp.push({id:Date.now()+i+1000,date:l[0],usd:parseFloat(l[1])||0,inr:parseFloat(l[2])||0,category:l[3]||"General Charity",recipient:l[4]||"",intention:l[5]||"",note:l[6]||""});
+            }
+          }
+          if(imp.length){setSadaqaEntries(imp);sCount=imp.length;}
+        }
+
+        const total=zCount+sCount;
+        if(total>0){
+          showToast(`✓ Imported ${total} records (${zCount} Zakat payments, ${sCount} Sadaqa entries)`,"success");
+        } else {
+          showToast("⚠ No valid records found in file. Make sure it's a CSV exported from this app.","error");
+        }
+      }catch(err){
+        showToast("✗ Import failed — invalid file format","error");
+      }
+    };
+    reader.readAsText(file); e.target.value="";
+  }
+
+  // ── Step renderer ──────────────────────────────────────────────
+  function renderStep(){
+    const s=STEPS[step];
+
+    if(s.id==="intro") return(
+      <div style={{textAlign:"center",maxWidth:580,margin:"0 auto"}}>
+        <div style={{fontSize:64,marginBottom:14}}>🌙</div>
+        <h2 style={{fontSize:"1.8rem",color:C.teal,marginBottom:8}}>Assalamu Alaikum</h2>
+        <p style={{fontSize:"1rem",color:"#5a7a70",lineHeight:1.7,marginBottom:22,fontFamily:"sans-serif"}}>
+          Zakat is one of the five pillars of Islam — a purification of your wealth and a right of the poor. This step-by-step guide will help you calculate your Zakat accurately, with live prices for gold, silver, and INR conversion.
+        </p>
+        <HadithCard hadith={HADITHS[hadithIdx]}/>
+        <GuidanceBox icon="📋" title="What you'll need">
+          Your bank balances, approximate weight of gold & silver, any business goods or investments, 401k/pension balance, and your monthly expenses & debts. About 5–10 minutes.
+        </GuidanceBox>
+      </div>
+    );
+
+    if(s.id==="prices") return(
+      <div style={{maxWidth:540,margin:"0 auto"}}>
+        <HadithCard hadith={HADITHS[1]} compact/>
+        <div style={{height:12}}/>
+        <GuidanceBox icon="💡" title="Why do prices matter?">
+          Zakat is calculated based on the <strong>current market value</strong> of gold and silver. The nisab (minimum threshold) changes daily with metal prices. We fetch live rates automatically.
+        </GuidanceBox>
+        <div style={{background:"#fff",border:"1px solid #cce0d9",borderRadius:16,padding:22,marginBottom:14}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+            <span style={{fontWeight:700,color:C.teal}}>Current Market Prices</span>
+            <button onClick={fetchPrices} disabled={priceLoading} style={{background:C.teal,color:"#fff",border:"none",borderRadius:20,padding:"5px 16px",cursor:"pointer",fontSize:"0.8rem",fontWeight:600,opacity:priceLoading?0.7:1,fontFamily:"sans-serif"}}>
+              {priceLoading?"⟳ Updating…":"⟳ Refresh"}
+            </button>
+          </div>
+          {[["🟡","Gold / gram","$"+fmt(prices.goldPerGram),currency!=="USD"?inCurr(prices.goldPerGram)+" per gram":""],
+            ["⬜","Silver / gram","$"+fmt(prices.silverPerGram),currency!=="USD"?inCurr(prices.silverPerGram)+" per gram":""],
+            ["🔵","USD → "+currObj.code,"1 USD",currObj.symbol+fmt(currRate,currency==="IDR"?0:3)]
+          ].map(([e,l,u,i])=>(
+            <div key={l} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"11px 0",borderBottom:"1px solid #f0f4f2"}}>
+              <span style={{display:"flex",alignItems:"center",gap:10,fontWeight:600,color:"#3a5a50",fontFamily:"sans-serif"}}><span style={{fontSize:18}}>{e}</span>{l}</span>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontWeight:800,color:C.teal,fontSize:"1.05rem",fontFamily:"sans-serif"}}>{u}</div>
+                <div style={{fontSize:"0.75rem",color:C.gold,fontFamily:"sans-serif"}}>{i}</div>
+              </div>
+            </div>
+          ))}
+          {priceUpdated&&<div style={{fontSize:"0.7rem",color:priceUpdated.includes("forex")?"#b8830a":"#1a5c4a",marginTop:8,textAlign:"right",fontFamily:"sans-serif",fontWeight:600}}>✓ Live rates as of {priceUpdated}</div>}
+          {!priceUpdated&&<div style={{fontSize:"0.7rem",color:"#aaa",marginTop:8,textAlign:"right",fontFamily:"sans-serif"}}>⏳ Fetching live rates...</div>}
+        </div>
+
+        {/* Manual Override Panel */}
+        <div style={{background:"#fff",border:"1px solid #f0dfc0",borderRadius:14,padding:16,marginBottom:14}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:overrideMode?14:0}}>
+            <div style={{fontSize:"0.82rem",fontWeight:700,color:C.gold,fontFamily:"sans-serif"}}>✏️ Manually override prices</div>
+            <button onClick={()=>setOverrideMode(m=>!m)} style={{background:overrideMode?"#fdf5e0":"#fff",border:"1.5px solid #e8c870",borderRadius:20,padding:"4px 14px",cursor:"pointer",fontSize:"0.75rem",fontWeight:700,color:C.gold,fontFamily:"sans-serif"}}>
+              {overrideMode?"✕ Cancel":"Edit"}
+            </button>
+          </div>
+          {overrideMode&&(
+            <div>
+              <div style={{fontSize:"0.72rem",color:"#9ab",marginBottom:12,fontFamily:"sans-serif",lineHeight:1.5}}>
+                If you have a more accurate source (e.g. Google Finance, your local bank), enter values below. Leave blank to keep live rate.
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+                <Field label="Gold price ($/gram)">
+                  <div style={{display:"flex",border:"1.5px solid #e8c870",borderRadius:10,overflow:"hidden"}}>
+                    <span style={{padding:"0 12px",background:"#fdf5e0",color:C.gold,fontWeight:700,fontSize:"0.9rem",display:"flex",alignItems:"center",borderRight:"1.5px solid #e8c870"}}>$</span>
+                    <input type="number" value={manualGold} onChange={e=>setManualGold(e.target.value)}
+                      placeholder={fmt(prices.goldPerGram)}
+                      style={{flex:1,border:"none",outline:"none",padding:"10px 12px",fontSize:"0.95rem",background:"transparent",fontFamily:"sans-serif"}}/>
+                  </div>
+                </Field>
+                <Field label="Silver price ($/gram)">
+                  <div style={{display:"flex",border:"1.5px solid #e8c870",borderRadius:10,overflow:"hidden"}}>
+                    <span style={{padding:"0 12px",background:"#fdf5e0",color:C.gold,fontWeight:700,fontSize:"0.9rem",display:"flex",alignItems:"center",borderRight:"1.5px solid #e8c870"}}>$</span>
+                    <input type="number" value={manualSilver} onChange={e=>setManualSilver(e.target.value)}
+                      placeholder={fmt(prices.silverPerGram)}
+                      style={{flex:1,border:"none",outline:"none",padding:"10px 12px",fontSize:"0.95rem",background:"transparent",fontFamily:"sans-serif"}}/>
+                  </div>
+                </Field>
+              </div>
+              <div style={{marginBottom:12}}>
+                <div style={{fontSize:"0.75rem",fontWeight:700,color:"#5a7a70",textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:8,fontFamily:"sans-serif"}}>
+                  Override exchange rates (USD to each currency)
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
+                  {ZAKAT_CURRENCIES.filter(c=>c.code!=="USD").map(c=>(
+                    <div key={c.code}>
+                      <div style={{fontSize:"0.68rem",color:"#888",marginBottom:3,fontFamily:"sans-serif"}}>{c.flag} {c.code}</div>
+                      <input type="number"
+                        value={manualRates[c.code]||""}
+                        onChange={ev=>setManualRates(r=>({...r,[c.code]:ev.target.value}))}
+                        placeholder={fmt(prices[c.code]||c.rate,c.code==="IDR"?0:3)}
+                        style={{width:"100%",border:"1.5px solid #e8c870",borderRadius:8,padding:"6px 8px",fontSize:"0.82rem",outline:"none",fontFamily:"sans-serif",boxSizing:"border-box"}}/>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <button onClick={()=>{
+                const updates={};
+                if(manualGold&&parseFloat(manualGold)>0) updates.goldPerGram=parseFloat(manualGold);
+                if(manualSilver&&parseFloat(manualSilver)>0) updates.silverPerGram=parseFloat(manualSilver);
+                Object.entries(manualRates).forEach(([k,v])=>{if(v&&parseFloat(v)>0) updates[k]=parseFloat(v);});
+                if(updates.INR) updates.usdToInr=updates.INR;
+                if(Object.keys(updates).length>0){
+                  setPrices(p=>({...p,...updates}));
+                  setPriceUpdated("manual override @ "+new Date().toLocaleTimeString());
+                  showToast("✓ Prices updated with your custom values","success");
+                  setOverrideMode(false);
+                } else {
+                  showToast("⚠ No values entered — nothing changed","error");
+                }
+              }} style={{background:C.gold,color:"#fff",border:"none",borderRadius:10,padding:"9px 22px",fontWeight:700,cursor:"pointer",fontSize:"0.88rem",fontFamily:"sans-serif"}}>
+                ✓ Apply My Values
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:"0.78rem",color:"#888",marginBottom:10,fontWeight:700,fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:"0.06em"}}>Display Currency — Select Your Country</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:7}}>
+            {ZAKAT_CURRENCIES.map(c=>(
+              <button key={c.code} onClick={()=>setCurrency(c.code)} style={{
+                padding:"8px 6px",borderRadius:10,border:`1.5px solid ${currency===c.code?C.teal:"#cce0d9"}`,
+                background:currency===c.code?C.teal:"#fff",color:currency===c.code?"#fff":"#3a5a50",
+                fontWeight:600,fontSize:"0.72rem",cursor:"pointer",fontFamily:"sans-serif",
+                display:"flex",flexDirection:"column",alignItems:"center",gap:2,transition:"all 0.15s"
+              }}>
+                <span style={{fontSize:16}}>{c.flag}</span>
+                <span style={{fontWeight:800}}>{c.symbol} {c.code}</span>
+                <span style={{fontSize:"0.62rem",opacity:0.75}}>{c.name.split(" ")[0]}</span>
+              </button>
+            ))}
+          </div>
+          <div style={{marginTop:8,fontSize:"0.72rem",color:"#9ab",fontFamily:"sans-serif"}}>
+            Rates fetched live from <strong>fawazahmed0/currency-api</strong> (no API key, updated daily). Use the override panel above if you need a more precise value.
+          </div>
+        </div>
+      </div>
+    );
+
+    if(s.id==="cash") return(
+      <div style={{maxWidth:520,margin:"0 auto"}}>
+        <HadithCard hadith={HADITHS[6]} compact/>
+        <div style={{height:12}}/>
+        <GuidanceBox icon="💵" title="What counts as cash?">
+          Include <strong>all</strong> accessible money: physical cash, all bank accounts (savings, checking, fixed deposits), money held by others on your behalf, and foreign currency converted to USD.
+        </GuidanceBox>
+        <div style={{background:"#fff",border:"1px solid #cce0d9",borderRadius:16,padding:22}}>
+          <Field label="Total Cash & Bank Balances" tip="All bank accounts + physical cash + cash held by others">
+            <InputDollar value={cash} onChange={setCash} placeholder="0.00"/>
+            {cashVal>0&&currency!=="USD"&&<div style={{fontSize:"0.78rem",color:C.gold,marginTop:4,fontFamily:"sans-serif"}}>{inCurr(cashVal)}</div>}
+          </Field>
+          {cashVal>0&&(
+            <div style={{marginTop:16,background:"#f0faf7",borderRadius:10,padding:"12px 16px"}}>
+              <div style={{fontWeight:700,color:C.teal,marginBottom:6,fontFamily:"sans-serif",fontSize:"0.85rem"}}>✓ Entered: {dual(cashVal)}</div>
+              <PBar value={cashVal} max={nisabVal} label="As % of nisab threshold"/>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+
+    if(s.id==="metals") return(
+      <div style={{maxWidth:520,margin:"0 auto"}}>
+        <HadithCard hadith={HADITHS[0]} compact/>
+        <div style={{height:12}}/>
+        <GuidanceBox icon="⚖️" title="Hanafi ruling on gold & silver">
+          Zakat is due on <strong>all gold and silver</strong> you own — jewelry, coins, bars, or any form. 1 tola = 11.66g, 1 troy oz = 31.1g.
+        </GuidanceBox>
+        <div style={{background:"#fff",border:"1px solid #cce0d9",borderRadius:16,padding:22,display:"flex",flexDirection:"column",gap:18}}>
+          <Field label="🟡 Gold Weight" tip="Enter total weight of all gold items including jewelry.">
+            <MetalInput value={goldW} unit={goldU} onValue={setGoldW} onUnit={setGoldU}/>
+            {goldVal>0&&<div style={{fontSize:"0.8rem",color:C.teal,marginTop:4,fontWeight:600,fontFamily:"sans-serif"}}>Value: {dual(goldVal)} @ ${fmt(prices.goldPerGram)}/g</div>}
+          </Field>
+          <Field label="⬜ Silver Weight" tip="Include all silver: jewelry, cutlery, coins, bars.">
+            <MetalInput value={silverW} unit={silverU} onValue={setSilverW} onUnit={setSilverU}/>
+            {silverVal>0&&<div style={{fontSize:"0.8rem",color:C.teal,marginTop:4,fontWeight:600,fontFamily:"sans-serif"}}>Value: {dual(silverVal)} @ ${fmt(prices.silverPerGram)}/g</div>}
+          </Field>
+        </div>
+      </div>
+    );
+
+    if(s.id==="assets") return(
+      <div style={{maxWidth:560,margin:"0 auto"}}>
+        <HadithCard hadith={HADITHS[5]} compact/>
+        <div style={{height:12}}/>
+        <GuidanceBox icon="📦" title="Zakatable assets">
+          <strong>Include:</strong> business inventory for resale, receivable debts, stocks (for trading), rental income.<br/>
+          <strong>Exclude:</strong> your home, car, clothing, tools of your profession — personal use items.
+        </GuidanceBox>
+        <div style={{background:"#fff",border:"1px solid #cce0d9",borderRadius:16,padding:22}}>
+          <div className="grid-2" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+            <Field label="Business / Trade Goods" tip="Goods held for resale — full market value."><InputDollar value={trade} onChange={setTrade}/></Field>
+            <Field label="Money Owed to You" tip="Debts expected to be repaid."><InputDollar value={recv} onChange={setRecv}/></Field>
+            <Field label="Stocks (for trading)" tip="If for resale: full value. For dividends only: dividend amount."><InputDollar value={stocks} onChange={setStocks}/></Field>
+            <Field label="Pension (non-401k)" tip="Other accessible pension savings."><InputDollar value={pension} onChange={setPension}/></Field>
+            <Field label="Rental Income (annual)" tip="Annual income received — NOT property value."><InputDollar value={rental} onChange={setRental}/></Field>
+            <Field label="Other Savings"><InputDollar value={other} onChange={setOther}/></Field>
+          </div>
+          {extraAssets>0&&<div style={{marginTop:14,background:"#f0faf7",borderRadius:10,padding:"10px 14px",fontSize:"0.85rem",color:C.teal,fontWeight:600,fontFamily:"sans-serif"}}>✓ Other Assets Total: {dual(extraAssets)}</div>}
+        </div>
+      </div>
+    );
+
+    if(s.id==="liabilities") return(
+      <div style={{maxWidth:520,margin:"0 auto"}}>
+        <HadithCard hadith={HADITHS[4]} compact/>
+        <div style={{height:12}}/>
+        <GuidanceBox icon="📋" title="Scholar's guidance on deductions">
+          Deduct debts due this year. For <strong>long-term loans</strong> (mortgage, car): deduct only the <em>next monthly installment</em>, not total balance. Not deducting is more virtuous.
+        </GuidanceBox>
+        <div style={{background:"#fff",border:"1px solid #cce0d9",borderRadius:16,padding:22,display:"flex",flexDirection:"column",gap:16}}>
+          <Field label="Outstanding Debts (due this year)" tip="Short-term debts. Long-term: next payment only."><InputDollar value={debts} onChange={setDebts}/></Field>
+          <Field label="Upcoming Monthly Expenses" tip="Next month's essentials. Optional deduction."><InputDollar value={expenses} onChange={setExpenses}/></Field>
+          {totalLiab>0&&<div style={{background:"#fff5f5",border:"1px solid #f5c6c6",borderRadius:10,padding:"10px 14px",fontSize:"0.85rem",color:C.red,fontFamily:"sans-serif"}}>Deductions: −{dual(totalLiab)}</div>}
+        </div>
+      </div>
+    );
+
+    if(s.id==="retirement") return(
+      <div style={{maxWidth:600,margin:"0 auto"}}>
+        <div style={{background:`linear-gradient(135deg,#052a1e,${C.teal})`,borderRadius:14,padding:"16px 20px",marginBottom:16,color:"#fff"}}>
+          <div style={{fontSize:"0.7rem",color:C.goldLight,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.08em",marginBottom:6}}>🏦 401k / Pension Zakat</div>
+          <div style={{fontSize:"0.88rem",lineHeight:1.65,color:"rgba(255,255,255,0.88)",fontFamily:"sans-serif"}}>Scholars differ on whether to pay Zakat on the full balance, or the net amount after early withdrawal penalties and taxes. Choose the method that fits your situation.</div>
+        </div>
+
+        <div style={{background:"#fff",border:"1px solid #cce0d9",borderRadius:16,padding:22,marginBottom:14}}>
+          <div className="grid-2" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:16}}>
+            <Field label="401k / Retirement Balance" tip="Total current balance of all retirement accounts." full>
+              <InputDollar value={ret401k} onChange={setRet401k} placeholder="e.g. 85000"/>
+              {ret401kVal>0&&currency!=="USD"&&<div style={{fontSize:"0.75rem",color:C.gold,marginTop:3,fontFamily:"sans-serif"}}>{inCurr(ret401kVal)}</div>}
+            </Field>
+            <Field label="Your Age"><input type="number" value={retAge} onChange={e=>setRetAge(e.target.value)} placeholder="e.g. 42" style={{border:"1.5px solid #cce0d9",borderRadius:10,padding:"11px 14px",fontSize:"1rem",outline:"none",width:"100%",fontFamily:"sans-serif"}}/></Field>
+            <Field label="Years Held Above Nisab" tip="Used for the Defer method only."><input type="number" value={retYears} onChange={e=>setRetYears(e.target.value)} min="1" max="40" style={{border:"1.5px solid #cce0d9",borderRadius:10,padding:"11px 14px",fontSize:"1rem",outline:"none",width:"100%",fontFamily:"sans-serif"}}/></Field>
+            <Field label="Tax Bracket">
+              <select value={retTax} onChange={e=>setRetTax(+e.target.value)} style={{border:"1.5px solid #cce0d9",borderRadius:10,padding:"11px 14px",fontSize:"0.88rem",outline:"none",background:"#fff",color:C.teal,fontWeight:600,width:"100%",fontFamily:"sans-serif"}}>
+                {TAX_BRACKETS.map(b=><option key={b.value} value={b.value}>{b.label}</option>)}
+              </select>
+            </Field>
+          </div>
+
+          {retAge&&parseFloat(retAge)<59.5&&(
+            <div style={{background:"#fdf5e0",border:"1px solid #e8c870",borderRadius:10,padding:"10px 14px",marginBottom:14,fontSize:"0.82rem",color:"#7a5a00",fontFamily:"sans-serif"}}>
+              ⚠ Under 59½ — 10% IRS early withdrawal penalty applies.
+              <div style={{marginTop:6,display:"flex",gap:8}}>
+                <span style={{fontWeight:600}}>Penalty rate:</span>
+                {[10,0].map(r=><button key={r} onClick={()=>setRetPenalty(r)} style={{padding:"2px 10px",borderRadius:20,border:`1.5px solid ${retPenalty===r?C.teal:"#cce0d9"}`,background:retPenalty===r?C.teal:"transparent",color:retPenalty===r?"#fff":C.teal,cursor:"pointer",fontWeight:700,fontSize:"0.78rem",fontFamily:"sans-serif"}}>{r}%</button>)}
+              </div>
+            </div>
+          )}
+
+          <div style={{fontWeight:700,color:C.teal,marginBottom:10,fontFamily:"sans-serif",fontSize:"0.9rem"}}>Choose Calculation Method</div>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            {Object.values(METHODS_401K).map(mm=>(
+              <div key={mm.id} onClick={()=>setRetMethod(mm.id)} style={{border:`2px solid ${retMethod===mm.id?mm.color:"#dde8e4"}`,borderRadius:12,padding:"14px 16px",cursor:"pointer",background:retMethod===mm.id?mm.colorBg:"#fff",transition:"all 0.15s",position:"relative"}}>
+                {mm.recommended&&<span style={{position:"absolute",top:0,right:0,background:mm.color,color:"#fff",fontSize:"0.62rem",fontWeight:800,padding:"3px 10px",borderRadius:"0 10px 0 8px",letterSpacing:"0.05em",textTransform:"uppercase",fontFamily:"sans-serif"}}>Recommended</span>}
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <div style={{width:20,height:20,borderRadius:"50%",border:`2px solid ${mm.color}`,background:retMethod===mm.id?mm.color:"transparent",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                    {retMethod===mm.id&&<div style={{width:8,height:8,borderRadius:"50%",background:"#fff"}}/>}
+                  </div>
+                  <div style={{flex:1}}>
+                    <span style={{fontWeight:700,color:mm.color,fontSize:"0.92rem"}}>{mm.icon} {mm.label}</span>
+                    <span style={{fontSize:"0.72rem",color:"#888",marginLeft:8,fontFamily:"sans-serif"}}>— {mm.scholar}</span>
+                  </div>
+                  {ret401kVal>0&&<span style={{fontWeight:800,color:mm.color,fontSize:"0.95rem",fontFamily:"sans-serif"}}>${fmt(mm.formula(ret401kVal,retPenalty,retTax,parseFloat(retYears)||1))}</span>}
+                </div>
+                {retMethod===mm.id&&<div style={{fontSize:"0.8rem",color:"#3a5a50",marginTop:8,lineHeight:1.55,fontFamily:"sans-serif",paddingLeft:30}}>{mm.description}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {ret401kVal>0&&(
+          <div style={{background:"#f0faf7",border:"1px solid #a8d8c4",borderRadius:12,padding:"14px 18px"}}>
+            <div style={{fontWeight:700,color:C.teal,marginBottom:4,fontFamily:"sans-serif"}}>Summary for this method</div>
+            <div style={{display:"flex",gap:20,flexWrap:"wrap",fontFamily:"sans-serif",fontSize:"0.85rem",color:"#3a5a50"}}>
+              <span>401k Balance: <strong>${fmt(ret401kVal)}</strong></span>
+              <span>Zakat Due: <strong style={{color:C.teal}}>${fmt(ret401kZakat)}</strong></span>
+              {currency!=="USD"&&<span>≈ <strong style={{color:C.gold}}>{inCurr(ret401kZakat)} {currObj.code}</strong></span>}
+              <span>Formula: <em>{METHODS_401K[retMethod].formulaLabel}</em></span>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+
+    if(s.id==="nisab") return(
+      <div style={{maxWidth:560,margin:"0 auto"}}>
+        <GuidanceBox icon="🎯" title="What is Nisab?">
+          The minimum wealth threshold for Zakat to be obligatory. You must also have held this wealth for a full <strong>lunar year (hawl)</strong>.
+        </GuidanceBox>
+        <div style={{background:"#fff",border:"1px solid #cce0d9",borderRadius:16,padding:22,marginBottom:16}}>
+          <div style={{fontWeight:700,color:C.teal,marginBottom:12,fontFamily:"sans-serif"}}>Choose Nisab Standard</div>
+          {[{v:"silver",l:"Silver — 612.36 grams",s:`$${fmt(NISAB.silver*prices.silverPerGram)} · ₹${fmtINR(NISAB.silver*prices.silverPerGram*prices.usdToInr)}`,rec:true},{v:"gold",l:"Gold — 87.48 grams",s:`$${fmt(NISAB.gold*prices.goldPerGram)} · ₹${fmtINR(NISAB.gold*prices.goldPerGram*prices.usdToInr)}`,rec:false}].map(o=>(
+            <div key={o.v} onClick={()=>setNisabBasis(o.v)} style={{display:"flex",alignItems:"flex-start",gap:12,cursor:"pointer",padding:14,borderRadius:12,border:`2px solid ${nisabBasis===o.v?C.teal:"#cce0d9"}`,background:nisabBasis===o.v?"#e8f5f0":"#fff",marginBottom:10,transition:"all 0.15s"}}>
+              <div style={{width:18,height:18,borderRadius:"50%",border:`2px solid ${C.teal}`,background:nisabBasis===o.v?C.teal:"transparent",flexShrink:0,marginTop:2,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                {nisabBasis===o.v&&<div style={{width:7,height:7,borderRadius:"50%",background:"#fff"}}/>}
+              </div>
+              <div>
+                <div style={{fontWeight:700,color:C.teal,fontFamily:"sans-serif"}}>{o.l} {o.rec&&<span style={{background:"#d4edda",color:"#155724",fontSize:"0.65rem",padding:"2px 8px",borderRadius:10,marginLeft:6,fontWeight:700,fontFamily:"sans-serif"}}>Recommended</span>}</div>
+                <div style={{fontSize:"0.8rem",color:"#888",marginTop:3,fontFamily:"sans-serif"}}>{o.s}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{background:met?`linear-gradient(135deg,#0a3d2e,${C.teal})`:"linear-gradient(135deg,#7a5a00,#b8830a)",borderRadius:16,padding:22,color:"#fff",textAlign:"center"}}>
+          <div style={{fontSize:"0.8rem",color:"rgba(255,255,255,0.6)",marginBottom:6,textTransform:"uppercase",letterSpacing:"0.08em",fontFamily:"sans-serif"}}>Your Net Zakatable Wealth</div>
+          <div style={{fontSize:"2.6rem",fontWeight:800,marginBottom:4}}>${fmt(net)}</div>
+          {currency!=="USD"&&<div style={{fontSize:"1rem",color:C.goldLight,marginBottom:12,fontFamily:"sans-serif"}}>{inCurr(net)}</div>}
+          <div style={{background:"rgba(255,255,255,0.12)",borderRadius:12,padding:"10px 16px",marginBottom:12}}>
+            <PBar value={net} max={nisabVal} label={`vs Nisab ($${fmt(nisabVal,0)})`} color={met?C.goldLight:"#fff"}/>
+          </div>
+          <div style={{fontSize:"1rem",fontWeight:700,color:met?"#5df0a4":"#ffcf80",fontFamily:"sans-serif"}}>
+            {met?"✓ Nisab reached — Zakat is obligatory":"⚠ Below nisab — Zakat not yet obligatory"}
+          </div>
+        </div>
+      </div>
+    );
+
+    if(s.id==="result") return(
+      <div style={{maxWidth:620,margin:"0 auto"}}>
+        {met?(
+          <>
+            <HadithCard hadith={HADITHS[2]}/>
+            <div style={{background:`linear-gradient(160deg,#0a3d2e,${C.teal})`,borderRadius:20,padding:28,color:"#fff",textAlign:"center",marginBottom:20}}>
+              <div style={{fontSize:"0.9rem",color:"rgba(255,255,255,0.6)",marginBottom:6,fontFamily:"sans-serif"}}>Alhamdulillah — Your Zakat Due</div>
+              <div style={{fontSize:"3.5rem",fontWeight:800,letterSpacing:"-0.03em"}}>${fmt(zakatDue)}</div>
+              {currency!=="USD"&&<div style={{fontSize:"1.2rem",color:C.goldLight,marginBottom:12,fontFamily:"sans-serif"}}>{inCurr(zakatDue)} {currObj.code}</div>}
+              <div style={{fontSize:"0.8rem",color:"rgba(255,255,255,0.5)",marginBottom:18,fontFamily:"sans-serif"}}>2.5% of net zakatable wealth</div>
+              <div style={{background:"rgba(255,255,255,0.1)",borderRadius:14,padding:18,marginBottom:16}}>
+                <div style={{fontWeight:700,marginBottom:8,fontFamily:"sans-serif"}}>📅 Monthly Payment Plan</div>
+                <input type="range" min="1" max="12" value={spreadMonths} onChange={e=>setSpreadMonths(+e.target.value)} style={{width:"100%",accentColor:C.goldLight,marginBottom:8}}/>
+                <div style={{fontSize:"1.5rem",fontWeight:800,color:C.goldLight}}>${fmt(perMonth)}/month</div>
+                {currency!=="USD"&&<div style={{fontSize:"0.85rem",color:"rgba(255,255,255,0.7)",fontFamily:"sans-serif"}}>{inCurr(perMonth)} {currObj.code}/month · {spreadMonths} month{spreadMonths>1?"s":""}</div>}
+              </div>
+              <div className="grid-2" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+                {[["$"+fmt(totalAssets),"Total Assets"],["−$"+fmt(totalLiab),"Liabilities"],["$"+fmt(net),"Net Wealth"],["$"+fmt(zakatDue),"Zakat (2.5%)"]].map(([v,l])=>(
+                  <div key={l} style={{background:"rgba(255,255,255,0.1)",borderRadius:10,padding:"10px 14px"}}>
+                    <div style={{fontWeight:800,fontSize:"1.05rem"}}>{v}</div>
+                    <div style={{fontSize:"0.7rem",color:"rgba(255,255,255,0.55)",marginTop:2,fontFamily:"sans-serif"}}>{l}</div>
+                  </div>
+                ))}
+              </div>
+              {ret401kVal>0&&(
+                <div style={{background:"rgba(200,146,42,0.15)",border:"1px solid rgba(200,146,42,0.3)",borderRadius:10,padding:"10px 14px",marginBottom:16,fontSize:"0.82rem",fontFamily:"sans-serif"}}>
+                  401k ({METHODS_401K[retMethod].label}): <strong>${fmt(ret401kZakat)}</strong> included above
+                </div>
+              )}
+              <div style={{display:"flex",gap:10}}>
+                <button onClick={()=>setMainTab("tracker")} style={{flex:1,background:`linear-gradient(135deg,${C.gold},${C.goldLight})`,color:"#3a2000",border:"none",borderRadius:12,padding:13,fontWeight:800,cursor:"pointer",fontSize:"0.9rem",fontFamily:"sans-serif"}}>💳 Start Tracking →</button>
+                <button onClick={exportPDF} style={{flex:1,background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.3)",color:"#fff",borderRadius:12,padding:13,fontWeight:700,cursor:"pointer",fontSize:"0.9rem",fontFamily:"sans-serif"}}>📄 Save PDF</button>
+              </div>
+            </div>
+            <GuidanceBox icon="🤲" title="Du'a when giving Zakat">
+              Make intention (niyyah) before giving: <em>"I give this Zakat as purification of my wealth, seeking the pleasure of Allah."</em><br/><br/>
+              You may give to: the poor, travelers in need, those in debt, or trusted organizations distributing to these categories.
+            </GuidanceBox>
+          </>
+        ):(
+          <div style={{textAlign:"center"}}>
+            <div style={{fontSize:56,marginBottom:12}}>🌱</div>
+            <h2 style={{color:C.teal,marginBottom:8}}>Zakat is not due this year</h2>
+            <p style={{color:"#5a7a70",lineHeight:1.7,marginBottom:20,fontFamily:"sans-serif"}}>Your net wealth (${fmt(net)}) is below the nisab threshold (${fmt(nisabVal)}). Consider giving voluntary Sadaqa — it is always rewarded!</p>
+            <HadithCard hadith={HADITHS[1]}/>
+            <button onClick={()=>setMainTab("sadaqa")} style={{background:C.teal,color:"#fff",border:"none",borderRadius:12,padding:"13px 28px",fontWeight:700,cursor:"pointer",fontSize:"0.95rem",fontFamily:"sans-serif"}}>💚 Record Sadaqa →</button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const tabItems=[["wizard","🧮","Calculator"],["tracker","💳","Zakat Tracker"],["sadaqa","💚","Sadaqa"],["recipients","👥","Recipients"]];
+
+  return(
+    <div style={{fontFamily:"'Georgia','Times New Roman',serif",background:C.bg,minHeight:"100vh",display:"flex",flexDirection:"column"}}>
+
+      {/* HEADER */}
+      <div style={{background:"linear-gradient(135deg,#072e22,#1a5c4a,#072e22)",padding:"0 22px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:12,padding:"14px 0 0",flexWrap:"wrap"}} className="header-actions">
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            <span style={{fontSize:26}}>🌙</span>
+            <div>
+              <h1 style={{color:"#fff",fontWeight:800,fontSize:"1.2rem",letterSpacing:"-0.02em",margin:0}}>Zakat & Sadaqa Tracker</h1>
+              <div style={{color:"rgba(255,255,255,0.5)",fontSize:"0.68rem",textTransform:"uppercase",letterSpacing:"0.07em",fontFamily:"sans-serif"}}>Live Prices · USD & INR · Full Record Keeping</div>
+            </div>
+          </div>
+          <div style={{marginLeft:"auto",display:"flex",gap:7,flexWrap:"wrap",alignItems:"center"}}>
+            <button onClick={fetchPrices} disabled={priceLoading} style={{background:"rgba(255,255,255,0.12)",border:"1px solid rgba(255,255,255,0.2)",color:"#fff",padding:"5px 11px",borderRadius:16,cursor:"pointer",fontSize:"0.73rem",fontWeight:600,fontFamily:"sans-serif"}}>{priceLoading?"⟳…":"⟳ Prices"}</button>
+            <button onClick={exportPDF} style={{background:"rgba(200,146,42,0.2)",border:"1px solid rgba(200,146,42,0.4)",color:C.goldLight,padding:"5px 11px",borderRadius:16,cursor:"pointer",fontSize:"0.73rem",fontWeight:600,fontFamily:"sans-serif"}}>📄 PDF</button>
+            <button onClick={exportCSV} style={{background:"rgba(200,146,42,0.2)",border:"1px solid rgba(200,146,42,0.4)",color:C.goldLight,padding:"5px 11px",borderRadius:16,cursor:"pointer",fontSize:"0.73rem",fontWeight:600,fontFamily:"sans-serif"}}>📊 CSV</button>
+            <label style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.15)",color:"rgba(255,255,255,0.8)",padding:"5px 11px",borderRadius:16,cursor:"pointer",fontSize:"0.73rem",fontWeight:600,fontFamily:"sans-serif"}}>
+              ⬆ Import<input type="file" accept=".csv" onChange={importCSV} style={{display:"none"}}/>
+            </label>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:14,padding:"8px 0",flexWrap:"wrap",fontSize:"0.75rem",fontFamily:"sans-serif"}}>
+          <span style={{color:"rgba(255,255,255,0.6)"}}>🟡 <span style={{color:"rgba(255,255,255,0.4)"}}>Au/g</span> <strong style={{color:"#fff"}}>{"$"+fmt(prices.goldPerGram)}</strong></span>
+          <span style={{color:"rgba(255,255,255,0.6)"}}>⬜ <span style={{color:"rgba(255,255,255,0.4)"}}>Ag/g</span> <strong style={{color:"#fff"}}>{"$"+fmt(prices.silverPerGram)}</strong></span>
+          <span style={{color:"rgba(255,255,255,0.6)"}}>{currObj.flag} <span style={{color:"rgba(255,255,255,0.4)"}}>{currObj.code+"/USD"}</span> <strong style={{color:"#fff"}}>{currObj.symbol+fmt(currRate,2)}</strong></span>
+          <span style={{color:"rgba(255,255,255,0.6)"}}>🌿 <span style={{color:"rgba(255,255,255,0.4)"}}>Zakat</span> <strong style={{color:"#fff"}}>{inCurr(zakatDue)}</strong></span>
+          {priceUpdated&&<span style={{marginLeft:"auto",color:"rgba(255,255,255,0.3)",fontSize:"0.66rem"}}>@{priceUpdated}</span>}
+        </div>
+        <div style={{display:"flex",gap:2,marginTop:4,overflowX:"auto"}}>
+          {tabItems.map(([t,icon,label])=>(
+            <button key={t} onClick={()=>setMainTab(t)} style={{padding:"8px 14px",border:"none",borderRadius:"10px 10px 0 0",cursor:"pointer",fontWeight:700,fontSize:"0.8rem",background:mainTab===t?"#f2f7f4":"transparent",color:mainTab===t?C.teal:"rgba(255,255,255,0.65)",display:"flex",alignItems:"center",gap:5,transition:"all 0.15s",whiteSpace:"nowrap",fontFamily:"sans-serif"}}>{icon} {label}</button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{flex:1,padding:"22px 22px",maxWidth:1060,margin:"0 auto",width:"100%"}}>
+
+        {/* WIZARD */}
+        {mainTab==="wizard"&&(
+          <div>
+            <div style={{display:"flex",alignItems:"center",marginBottom:24,overflowX:"auto",paddingBottom:4}}>
+              {STEPS.map((s,i)=>(
+                <div key={s.id} style={{display:"flex",alignItems:"center",flexShrink:0}}>
+                  <div onClick={()=>i<step&&setStep(i)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,cursor:i<step?"pointer":"default",opacity:i>step?0.4:1,transition:"all 0.2s"}}>
+                    <div style={{width:34,height:34,borderRadius:"50%",border:`2px solid ${i<=step?C.teal:"#cce0d9"}`,background:i<step?C.teal:i===step?C.tealMid:"#fff",color:i<=step?"#fff":"#aaa",display:"flex",alignItems:"center",justifyContent:"center",fontSize:i<step?"11px":"15px",fontWeight:700,transition:"all 0.2s"}}>{i<step?"✓":s.icon}</div>
+                    <div style={{fontSize:"0.6rem",fontWeight:600,color:i===step?C.teal:"#aaa",textAlign:"center",maxWidth:56,lineHeight:1.2,fontFamily:"sans-serif"}}>{s.title}</div>
+                  </div>
+                  {i<STEPS.length-1&&<div style={{width:20,height:2,background:i<step?C.teal:"#cce0d9",margin:"0 3px",marginBottom:16,flexShrink:0,transition:"background 0.3s"}}/>}
+                </div>
+              ))}
+            </div>
+            <div style={{textAlign:"center",marginBottom:22}}>
+              <div style={{fontSize:"1.5rem",marginBottom:3}}>{STEPS[step].icon}</div>
+              <h2 style={{color:C.teal,fontSize:"1.3rem",marginBottom:3}}>{STEPS[step].title}</h2>
+              <p style={{color:"#7a9a8a",fontSize:"0.88rem",fontFamily:"sans-serif"}}>{STEPS[step].subtitle}</p>
+            </div>
+            <div style={{minHeight:280}}>{renderStep()}</div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:28,paddingTop:18,borderTop:"1px solid #cce0d9"}}>
+              <button onClick={()=>setStep(s=>Math.max(0,s-1))} disabled={step===0} style={{background:step===0?"transparent":"#fff",border:`1.5px solid ${step===0?"transparent":"#cce0d9"}`,borderRadius:12,padding:"10px 22px",fontWeight:700,color:step===0?"#ccc":C.teal,cursor:step===0?"not-allowed":"pointer",fontSize:"0.9rem",fontFamily:"sans-serif"}}>← Back</button>
+              <span style={{fontSize:"0.75rem",color:"#aaa",fontFamily:"sans-serif"}}>Step {step+1} of {STEPS.length}</span>
+              <button onClick={()=>setStep(s=>Math.min(STEPS.length-1,s+1))} disabled={step===STEPS.length-1} style={{background:step===STEPS.length-1?C.gold:C.teal,color:"#fff",border:"none",borderRadius:12,padding:"10px 26px",fontWeight:800,cursor:step===STEPS.length-1?"not-allowed":"pointer",fontSize:"0.9rem",opacity:step===STEPS.length-1?0.7:1,fontFamily:"sans-serif"}}>
+                {step===STEPS.length-2?"See Results →":"Next →"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ZAKAT TRACKER */}
+        {mainTab==="tracker"&&(
+          <div style={{maxWidth:880,margin:"0 auto"}}>
+            <HadithCard hadith={HADITHS[3]} compact/>
+            <div style={{height:16}}/>
+            <div className="grid-4" style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
+              {[["Zakat Due",inCurr(zakatDue)+(currency!=="USD"?" "+currObj.code:""),C.teal],["Total Paid","$"+fmt(zTotalPaidEq),C.green],["Remaining","$"+fmt(zRemaining),zRemaining>0?C.red:C.green],["Done",Math.round(zPaidPct)+"%",zPaidPct>=100?C.green:C.teal]].map(([l,v,c])=>(
+                <div key={l} style={{background:"#fff",border:"1px solid #cce0d9",borderRadius:14,padding:"14px 16px",boxShadow:"0 2px 10px rgba(0,0,0,0.04)"}}>
+                  <div style={{fontSize:"0.68rem",color:"#888",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:3,fontFamily:"sans-serif"}}>{l}</div>
+                  <div style={{fontWeight:800,fontSize:"1.05rem",color:c,fontFamily:"sans-serif"}}>{v}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{background:"#fff",border:"1px solid #cce0d9",borderRadius:16,padding:20,marginBottom:18}}>
+              <div style={{fontWeight:700,color:C.teal,marginBottom:14,fontFamily:"sans-serif"}}>📊 Payment Progress</div>
+              <PBar value={zTotalPaidEq} max={zakatDue} label={`$${fmt(zTotalPaidEq)} paid of $${fmt(zakatDue)}`}/>
+              {(zTotalPaidUSD>0||zTotalPaidINR>0)&&(
+                <div className="grid-2" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginTop:14}}>
+                  <div style={{background:"#f0faf7",borderRadius:10,padding:"10px 14px",textAlign:"center"}}>
+                    <div style={{fontSize:"0.68rem",color:"#888",marginBottom:3,fontFamily:"sans-serif"}}>Paid in USD 🇺🇸</div>
+                    <div style={{fontWeight:800,color:C.teal,fontFamily:"sans-serif"}}>${fmt(zTotalPaidUSD)}</div>
+                  </div>
+                  <div style={{background:C.goldBg,borderRadius:10,padding:"10px 14px",textAlign:"center"}}>
+                    <div style={{fontSize:"0.68rem",color:"#888",marginBottom:3,fontFamily:"sans-serif"}}>Paid in INR 🇮🇳</div>
+                    <div style={{fontWeight:800,color:C.gold,fontFamily:"sans-serif"}}>₹{fmtINR(zTotalPaidINR)}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div style={{background:"#fff",border:"1px solid #cce0d9",borderRadius:16,padding:20,marginBottom:18}}>
+              <div style={{fontWeight:700,color:C.teal,marginBottom:14,fontFamily:"sans-serif"}}>➕ Record Zakat Payment</div>
+              <div className="grid-4" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 2fr",gap:11,marginBottom:11}}>
+                <Field label="Date"><input type="date" value={zPayDate} onChange={e=>setZPayDate(e.target.value)} style={{border:"1.5px solid #cce0d9",borderRadius:10,padding:"10px 12px",fontSize:"0.9rem",outline:"none",width:"100%",fontFamily:"sans-serif"}}/></Field>
+                <Field label="USD $"><InputDollar value={zPayUSD} onChange={setZPayUSD}/></Field>
+                <Field label="INR ₹"><InputINR value={zPayINR} onChange={setZPayINR}/></Field>
+                <Field label="Recipient"><input value={zPayRecipient} onChange={e=>setZPayRecipient(e.target.value)} placeholder="Name…" list="rec-list" style={{border:"1.5px solid #cce0d9",borderRadius:10,padding:"10px 12px",fontSize:"0.9rem",outline:"none",width:"100%",fontFamily:"sans-serif"}}/><datalist id="rec-list">{recipients.map(r=><option key={r.id} value={r.name}/>)}</datalist></Field>
+              </div>
+              <div style={{display:"flex",gap:11,alignItems:"flex-end"}}>
+                <Field label="Note" style={{flex:1}}><input value={zPayNote} onChange={e=>setZPayNote(e.target.value)} placeholder="e.g. Ramadan · Via SeekersGuidance…" style={{border:"1.5px solid #cce0d9",borderRadius:10,padding:"10px 12px",fontSize:"0.9rem",outline:"none",minWidth:200,fontFamily:"sans-serif"}}/></Field>
+                <button onClick={()=>{if(!zPayUSD&&!zPayINR)return;setZakatPayments(p=>[...p,{id:Date.now(),date:zPayDate,usd:parseFloat(zPayUSD)||0,inr:parseFloat(zPayINR)||0,recipient:zPayRecipient,note:zPayNote}]);setZPayUSD("");setZPayINR("");setZPayRecipient("");setZPayNote("");}} style={{background:C.teal,color:"#fff",border:"none",borderRadius:10,padding:"10px 20px",fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",fontSize:"0.9rem",fontFamily:"sans-serif"}}>+ Add</button>
+              </div>
+            </div>
+            {zakatPayments.length>0&&(
+              <div style={{background:"#fff",border:"1px solid #cce0d9",borderRadius:16,padding:20,overflowX:"auto"}}>
+                <div style={{fontWeight:700,color:C.teal,marginBottom:12,fontFamily:"sans-serif"}}>📜 Payment History</div>
+                <table style={{width:"100%",fontSize:"0.83rem"}}>
+                  <thead><tr style={{background:"#f0faf7"}}>{["Date","USD","INR","Equiv","Recipient","Note",""].map(h=><th key={h} style={{padding:"9px 11px",textAlign:"left",fontWeight:700,color:C.teal,fontSize:"0.7rem",textTransform:"uppercase",borderBottom:"2px solid #cce0d9",fontFamily:"sans-serif"}}>{h}</th>)}</tr></thead>
+                  <tbody>
+                    {zakatPayments.map((p,i)=>(
+                      <tr key={p.id} style={{background:i%2?"#fafcfa":"#fff",borderBottom:"1px solid #f0f4f0"}}>
+                        <td style={{padding:"8px 11px",fontWeight:600,fontFamily:"sans-serif"}}>{p.date}</td>
+                        <td style={{padding:"8px 11px",color:C.teal,fontWeight:700,fontFamily:"sans-serif"}}>{p.usd>0?"$"+fmt(p.usd):"—"}</td>
+                        <td style={{padding:"8px 11px",color:C.gold,fontWeight:700,fontFamily:"sans-serif"}}>{p.inr>0?"₹"+fmtINR(p.inr):"—"}</td>
+                        <td style={{padding:"8px 11px",color:"#555",fontFamily:"sans-serif"}}>≈${fmt(p.usd+p.inr/prices.usdToInr)}</td>
+                        <td style={{padding:"8px 11px",fontFamily:"sans-serif"}}>{p.recipient||"—"}</td>
+                        <td style={{padding:"8px 11px",color:"#888",fontFamily:"sans-serif"}}>{p.note||"—"}</td>
+                        <td style={{padding:"8px 11px"}}><button onClick={()=>setZakatPayments(ps=>ps.filter(x=>x.id!==p.id))} style={{background:"#fff5f5",border:"1px solid #fcc",color:C.red,borderRadius:6,padding:"2px 8px",cursor:"pointer",fontSize:"0.73rem",fontWeight:600,fontFamily:"sans-serif"}}>✕</button></td>
+                      </tr>
+                    ))}
+                    <tr style={{background:"#f0faf7",fontWeight:700}}>
+                      <td style={{padding:"9px 11px",fontFamily:"sans-serif"}}>TOTAL</td>
+                      <td style={{padding:"9px 11px",color:C.teal,fontFamily:"sans-serif"}}>${fmt(zTotalPaidUSD)}</td>
+                      <td style={{padding:"9px 11px",color:C.gold,fontFamily:"sans-serif"}}>₹{fmtINR(zTotalPaidINR)}</td>
+                      <td style={{padding:"9px 11px",color:C.teal,fontFamily:"sans-serif"}}>${fmt(zTotalPaidEq)}</td>
+                      <td colSpan="3" style={{padding:"9px 11px",color:zRemaining>0?C.red:C.green,fontFamily:"sans-serif"}}>{zRemaining>0?`$${fmt(zRemaining)} remaining`:"✓ Fully paid! Alhamdulillah"}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* SADAQA */}
+        {mainTab==="sadaqa"&&(
+          <div style={{maxWidth:880,margin:"0 auto"}}>
+            <HadithCard hadith={HADITHS[hadithIdx]}/>
+            <div className="grid-3" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:20}}>
+              {[["Total Sadaqa (USD)","$"+fmt(sTotalUSD),C.green],["Total Sadaqa (INR)","₹"+fmtINR(sTotalINR),C.gold],["Combined (USD equiv)","$"+fmt(sTotalEq),C.teal]].map(([l,v,c])=>(
+                <div key={l} style={{background:"#fff",border:"1px solid #cce0d9",borderRadius:14,padding:"14px 16px",textAlign:"center"}}>
+                  <div style={{fontSize:"0.68rem",color:"#888",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:3,fontFamily:"sans-serif"}}>{l}</div>
+                  <div style={{fontWeight:800,fontSize:"1.05rem",color:c,fontFamily:"sans-serif"}}>{v}</div>
+                </div>
+              ))}
+            </div>
+            <GuidanceBox icon="💚" title="The virtue of Sadaqa">
+              Unlike Zakat, Sadaqa is voluntary and has no minimum. It can be given at any time, in any amount, to anyone in need. Record your intention (niyyah) — giving on behalf of a deceased parent is a Sadaqah Jariyah that continues to benefit them.
+            </GuidanceBox>
+            <div style={{background:"#fff",border:"1px solid #cce0d9",borderRadius:16,padding:20,marginBottom:18}}>
+              <div style={{fontWeight:700,color:C.green,marginBottom:14,fontFamily:"sans-serif"}}>💚 Record Sadaqa</div>
+              <div className="grid-4" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:11,marginBottom:11}}>
+                <Field label="Date"><input type="date" value={sDate} onChange={e=>setSDate(e.target.value)} style={{border:"1.5px solid #cce0d9",borderRadius:10,padding:"10px 12px",fontSize:"0.9rem",outline:"none",width:"100%",fontFamily:"sans-serif"}}/></Field>
+                <Field label="USD $"><InputDollar value={sAmtUSD} onChange={setSAmtUSD}/></Field>
+                <Field label="INR ₹"><InputINR value={sAmtINR} onChange={setSAmtINR}/></Field>
+                <Field label="Category">
+                  <select value={sCategory} onChange={e=>setSCategory(e.target.value)} style={{border:"1.5px solid #cce0d9",borderRadius:10,padding:"10px 12px",fontSize:"0.88rem",outline:"none",background:"#fff",color:C.teal,fontWeight:600,fontFamily:"sans-serif"}}>
+                    {SADAQA_CATEGORIES.map(c=><option key={c}>{c}</option>)}
+                  </select>
+                </Field>
+              </div>
+              <div className="grid-3" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:11,marginBottom:11}}>
+                <Field label="Recipient"><input value={sRecipient} onChange={e=>setSRecipient(e.target.value)} placeholder="Name or org…" list="srec-list" style={{border:"1.5px solid #cce0d9",borderRadius:10,padding:"10px 12px",fontSize:"0.9rem",outline:"none",width:"100%",fontFamily:"sans-serif"}}/><datalist id="srec-list">{recipients.map(r=><option key={r.id} value={r.name}/>)}</datalist></Field>
+                <Field label="Intention (Niyyah)" tip="Who is this on behalf of? e.g. For late father, Fi sabilillah"><input value={sIntention} onChange={e=>setSIntention(e.target.value)} placeholder="e.g. For late father…" style={{border:"1.5px solid #cce0d9",borderRadius:10,padding:"10px 12px",fontSize:"0.9rem",outline:"none",width:"100%",fontFamily:"sans-serif"}}/></Field>
+                <Field label="Note"><input value={sNote} onChange={e=>setSNote(e.target.value)} placeholder="Optional…" style={{border:"1.5px solid #cce0d9",borderRadius:10,padding:"10px 12px",fontSize:"0.9rem",outline:"none",width:"100%",fontFamily:"sans-serif"}}/></Field>
+              </div>
+              <button onClick={()=>{if(!sAmtUSD&&!sAmtINR)return;setSadaqaEntries(e=>[...e,{id:Date.now(),date:sDate,usd:parseFloat(sAmtUSD)||0,inr:parseFloat(sAmtINR)||0,category:sCategory,recipient:sRecipient,intention:sIntention,note:sNote}]);setSAmtUSD("");setSAmtINR("");setSRecipient("");setSIntention("");setSNote("");}} style={{background:C.green,color:"#fff",border:"none",borderRadius:10,padding:"10px 22px",fontWeight:700,cursor:"pointer",fontSize:"0.9rem",fontFamily:"sans-serif"}}>+ Record Sadaqa</button>
+            </div>
+            {sadaqaEntries.length>0&&(
+              <div style={{background:"#fff",border:"1px solid #cce0d9",borderRadius:16,padding:20,overflowX:"auto"}}>
+                <div style={{fontWeight:700,color:C.green,marginBottom:10,fontFamily:"sans-serif"}}>📜 Sadaqa Record</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:7,marginBottom:14}}>
+                  {SADAQA_CATEGORIES.filter(c=>sadaqaEntries.some(e=>e.category===c)).map(c=>{
+                    const total=sadaqaEntries.filter(e=>e.category===c).reduce((s,e)=>s+(parseFloat(e.usd)||0)+(parseFloat(e.inr)||0)/prices.usdToInr,0);
+                    return <span key={c} style={{background:"#f0faf7",border:"1px solid #cce0d9",borderRadius:20,padding:"3px 11px",fontSize:"0.73rem",fontWeight:700,color:C.teal,fontFamily:"sans-serif"}}>{c}: ${fmt(total,0)}</span>;
+                  })}
+                </div>
+                <table style={{width:"100%",fontSize:"0.83rem"}}>
+                  <thead><tr style={{background:"#f0fcf7"}}>{["Date","USD","INR","Category","Recipient","Intention",""].map(h=><th key={h} style={{padding:"9px 11px",textAlign:"left",fontWeight:700,color:C.green,fontSize:"0.7rem",textTransform:"uppercase",borderBottom:"2px solid #c0e8d0",fontFamily:"sans-serif"}}>{h}</th>)}</tr></thead>
+                  <tbody>
+                    {sadaqaEntries.map((e,i)=>(
+                      <tr key={e.id} style={{background:i%2?"#fafcfa":"#fff",borderBottom:"1px solid #f0f4f0"}}>
+                        <td style={{padding:"8px 11px",fontWeight:600,fontFamily:"sans-serif"}}>{e.date}</td>
+                        <td style={{padding:"8px 11px",color:C.teal,fontWeight:700,fontFamily:"sans-serif"}}>{e.usd>0?"$"+fmt(e.usd):"—"}</td>
+                        <td style={{padding:"8px 11px",color:C.gold,fontWeight:700,fontFamily:"sans-serif"}}>{e.inr>0?"₹"+fmtINR(e.inr):"—"}</td>
+                        <td style={{padding:"8px 11px",fontFamily:"sans-serif"}}><span style={{background:"#f0faf7",borderRadius:6,padding:"2px 7px",fontSize:"0.72rem",fontWeight:700,color:C.teal}}>{e.category}</span></td>
+                        <td style={{padding:"8px 11px",fontFamily:"sans-serif"}}>{e.recipient||"—"}</td>
+                        <td style={{padding:"8px 11px",color:"#888",fontStyle:"italic",fontFamily:"sans-serif"}}>{e.intention||"—"}</td>
+                        <td style={{padding:"8px 11px"}}><button onClick={()=>setSadaqaEntries(es=>es.filter(x=>x.id!==e.id))} style={{background:"#fff5f5",border:"1px solid #fcc",color:C.red,borderRadius:6,padding:"2px 8px",cursor:"pointer",fontSize:"0.73rem",fontWeight:600,fontFamily:"sans-serif"}}>✕</button></td>
+                      </tr>
+                    ))}
+                    <tr style={{background:"#f0fcf7",fontWeight:700}}>
+                      <td style={{padding:"9px 11px",fontFamily:"sans-serif"}}>TOTAL</td>
+                      <td style={{padding:"9px 11px",color:C.teal,fontFamily:"sans-serif"}}>${fmt(sTotalUSD)}</td>
+                      <td style={{padding:"9px 11px",color:C.gold,fontFamily:"sans-serif"}}>₹{fmtINR(sTotalINR)}</td>
+                      <td colSpan="4" style={{padding:"9px 11px",color:C.green,fontFamily:"sans-serif"}}>Combined ≈ ${fmt(sTotalEq)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* RECIPIENTS */}
+        {mainTab==="recipients"&&(
+          <div style={{maxWidth:780,margin:"0 auto"}}>
+            <HadithCard hadith={HADITHS[7]}/>
+            <div style={{height:12}}/>
+            <GuidanceBox icon="👥" title="Who can receive Zakat?">
+              The 8 categories from Quran 9:60: the poor, the destitute, Zakat collectors, those whose hearts are to be reconciled, freeing of slaves, those in debt, in the way of Allah, and stranded travelers.<br/><br/>
+              <strong>Cannot receive:</strong> your parents, children, spouse, or the wealthy.
+            </GuidanceBox>
+            <div style={{background:"#fff",border:"1px solid #cce0d9",borderRadius:16,padding:20,marginBottom:18}}>
+              <div style={{fontWeight:700,color:C.teal,marginBottom:14,fontFamily:"sans-serif"}}>➕ Add Recipient</div>
+              <div className="grid-3" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:13,marginBottom:13}}>
+                <Field label="Full Name"><input value={rName} onChange={e=>setRName(e.target.value)} placeholder="e.g. Abu Ibrahim" style={{border:"1.5px solid #cce0d9",borderRadius:10,padding:"10px 12px",fontSize:"0.9rem",outline:"none",width:"100%",fontFamily:"sans-serif"}}/></Field>
+                <Field label="Relation / Category"><input value={rRelation} onChange={e=>setRRelation(e.target.value)} placeholder="e.g. Poor relative" style={{border:"1.5px solid #cce0d9",borderRadius:10,padding:"10px 12px",fontSize:"0.9rem",outline:"none",width:"100%",fontFamily:"sans-serif"}}/></Field>
+                <Field label="Location"><input value={rLocation} onChange={e=>setRLocation(e.target.value)} placeholder="e.g. Mumbai, India" style={{border:"1.5px solid #cce0d9",borderRadius:10,padding:"10px 12px",fontSize:"0.9rem",outline:"none",width:"100%",fontFamily:"sans-serif"}}/></Field>
+              </div>
+              <button onClick={()=>{if(!rName)return;setRecipients(r=>[...r,{id:Date.now(),name:rName,relation:rRelation,location:rLocation}]);setRName("");setRRelation("");setRLocation("");}} style={{background:C.teal,color:"#fff",border:"none",borderRadius:10,padding:"10px 22px",fontWeight:700,cursor:"pointer",fontSize:"0.9rem",fontFamily:"sans-serif"}}>+ Add Recipient</button>
+            </div>
+            {recipients.length>0&&(
+              <div style={{background:"#fff",border:"1px solid #cce0d9",borderRadius:16,padding:20}}>
+                <div style={{fontWeight:700,color:C.teal,marginBottom:14,fontFamily:"sans-serif"}}>Recipients & Giving Summary</div>
+                <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                  {recipients.map(r=>{
+                    const rZ=zakatPayments.filter(p=>p.recipient===r.name);
+                    const rS=sadaqaEntries.filter(e=>e.recipient===r.name);
+                    const rZUSD=rZ.reduce((s,p)=>s+(p.usd||0),0);
+                    const rZINR=rZ.reduce((s,p)=>s+(p.inr||0),0);
+                    const rSUSD=rS.reduce((s,e)=>s+(e.usd||0),0);
+                    const rSINR=rS.reduce((s,e)=>s+(e.inr||0),0);
+                    const flag=r.location&&(r.location.includes("India")||r.location.includes("IN"))?"🇮🇳":"🌍";
+                    return(
+                      <div key={r.id} style={{border:"1px solid #e0ede8",borderRadius:12,padding:"13px 16px",display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
+                        <div style={{width:40,height:40,borderRadius:"50%",background:`linear-gradient(135deg,${C.teal},${C.tealLight})`,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:"1rem",flexShrink:0}}>{r.name[0].toUpperCase()}</div>
+                        <div style={{flex:1,minWidth:100}}>
+                          <div style={{fontWeight:700,color:C.teal,fontFamily:"sans-serif"}}>{r.name} <span>{flag}</span></div>
+                          <div style={{fontSize:"0.73rem",color:"#888",fontFamily:"sans-serif"}}>{r.relation||"No relation"}{r.location&&` · ${r.location}`}</div>
+                        </div>
+                        <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+                          {(rZUSD>0||rZINR>0)&&<div style={{background:"#f0faf7",borderRadius:8,padding:"5px 11px",textAlign:"center"}}>
+                            <div style={{fontSize:"0.62rem",color:"#888",fontFamily:"sans-serif"}}>Zakat</div>
+                            <div style={{fontWeight:700,color:C.teal,fontSize:"0.83rem",fontFamily:"sans-serif"}}>{rZUSD>0?"$"+fmt(rZUSD,0):""}{rZUSD>0&&rZINR>0?" · ":""}{rZINR>0?"₹"+fmtINR(rZINR):""}</div>
+                          </div>}
+                          {(rSUSD>0||rSINR>0)&&<div style={{background:"#f0fcf7",borderRadius:8,padding:"5px 11px",textAlign:"center"}}>
+                            <div style={{fontSize:"0.62rem",color:"#888",fontFamily:"sans-serif"}}>Sadaqa</div>
+                            <div style={{fontWeight:700,color:C.green,fontSize:"0.83rem",fontFamily:"sans-serif"}}>{rSUSD>0?"$"+fmt(rSUSD,0):""}{rSUSD>0&&rSINR>0?" · ":""}{rSINR>0?"₹"+fmtINR(rSINR):""}</div>
+                          </div>}
+                          {rZUSD===0&&rZINR===0&&rSUSD===0&&rSINR===0&&<span style={{fontSize:"0.75rem",color:"#bbb",fontFamily:"sans-serif"}}>No payments yet</span>}
+                        </div>
+                        <button onClick={()=>setRecipients(rs=>rs.filter(x=>x.id!==r.id))} style={{background:"#fff5f5",border:"1px solid #fcc",color:C.red,borderRadius:6,padding:"3px 9px",cursor:"pointer",fontSize:"0.73rem",fontWeight:600,fontFamily:"sans-serif"}}>✕</button>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div style={{marginTop:14,background:"#f0faf7",borderRadius:10,padding:"11px 14px",fontSize:"0.82rem",color:C.teal,fontFamily:"sans-serif"}}>
+                  <strong>Zakat distributed:</strong> ${fmt(zTotalPaidEq)} · <strong>Sadaqa given:</strong> ${fmt(sTotalEq)} · <strong>Total giving:</strong> ${fmt(zTotalPaidEq+sTotalEq)}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <Toast toast={toast}/>
+      {/* FOOTER HADITH TICKER */}
+      <div style={{background:`linear-gradient(135deg,#0a3d2e,${C.teal})`,padding:"11px 22px",display:"flex",alignItems:"center",gap:14}}>
+        <span style={{fontSize:"1rem",flexShrink:0}}>🌿</span>
+        <div style={{fontSize:"0.75rem",color:"rgba(255,255,255,0.75)",fontStyle:"italic",flex:1}}>"{HADITHS[hadithIdx].text}"</div>
+        <span style={{fontSize:"0.68rem",color:C.goldLight,fontWeight:700,flexShrink:0,fontFamily:"sans-serif"}}>— {HADITHS[hadithIdx].source}</span>
+      </div>
+    </div>
+  );
+}
+
+const root=ReactDOM.createRoot(document.getElementById("root"));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>
